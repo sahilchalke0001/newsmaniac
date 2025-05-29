@@ -1,94 +1,20 @@
 // src/components/News.jsx
 import React, { useState, useEffect, useRef } from "react";
+import "./News.css";
 
 const News = () => {
-  const [url, setUrl] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [articleData, setArticleData] = useState(null); // Stores processed data from backend
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedArticle, setSelectedArticle] = useState(null);
   const [summary, setSummary] = useState("");
   const [transHindi, setTransHindi] = useState("");
   const [transMarathi, setTransMarathi] = useState("");
-  const [message, setMessage] = useState({ type: "", text: "" }); // For warnings, errors, info
+  const [message, setMessage] = useState({ type: "", text: "" });
+  const [activeTab, setActiveTab] = useState("english"); // 'english', 'hindi', 'marathi'
+  const [videoPaths, setVideoPaths] = useState({}); // Stores URLs to generated videos
 
-  const audioPlayedRef = useRef(false); // To prevent multiple audio plays if component re-renders
-
-  // Function to handle fetching and processing the article
-  const processArticle = async () => {
-    if (!url) {
-      setMessage({ type: "warning", text: "Please enter a valid URL." });
-      return;
-    }
-
-    setLoading(true);
-    setArticleData(null);
-    setSummary("");
-    setTransHindi("");
-    setTransMarathi("");
-    setMessage({ type: "", text: "" }); // Clear previous messages
-
-    try {
-      // Make a POST request to your Node.js backend API
-      // The default Node.js backend port is often 3001, but can be configured
-      const response = await fetch("http://localhost:3001/process_article", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: url }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process article.");
-      }
-
-      const data = await response.json();
-      setArticleData(data.article_data);
-      setSummary(data.summary);
-      setTransHindi(data.trans_hindi);
-      setTransMarathi(data.trans_marathi);
-
-      if (!data.article_data.text) {
-        setMessage({
-          type: "warning",
-          text: "No content found for this article.",
-        });
-      }
-    } catch (error) {
-      console.error("Error processing article:", error);
-      setMessage({ type: "error", text: `Processing error: ${error.message}` });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Function for text-to-speech
-  const speakSummary = () => {
-    if (summary && "speechSynthesis" in window) {
-      // Cancel any ongoing speech before starting new one
-      window.speechSynthesis.cancel();
-      const msg = new SpeechSynthesisUtterance();
-      msg.text = summary;
-      window.speechSynthesis.speak(msg);
-      audioPlayedRef.current = true;
-    } else if (!summary) {
-      setMessage({ type: "warning", text: "No summary available to play." });
-    } else {
-      setMessage({
-        type: "info",
-        text: "Text-to-speech not supported in this browser.",
-      });
-    }
-  };
-
-  const stopSummary = () => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      audioPlayedRef.current = false;
-    }
-  };
-
-  // Cleanup for speech synthesis on component unmount
+  // Cleanup for speech synthesis on component unmount (still good practice)
   useEffect(() => {
     return () => {
       if ("speechSynthesis" in window) {
@@ -97,6 +23,120 @@ const News = () => {
     };
   }, []);
 
+  const handleSearchNews = async () => {
+    if (!searchQuery) {
+      setMessage({ type: "warning", text: "Please enter a search query." });
+      return;
+    }
+
+    setLoading(true);
+    setSearchResults([]);
+    setSelectedArticle(null);
+    setSummary("");
+    setTransHindi("");
+    setTransMarathi("");
+    setVideoPaths({}); // Clear video paths
+    setMessage({ type: "", text: "" });
+    setActiveTab("english");
+
+    try {
+      const response = await fetch("http://localhost:3001/search_news", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: searchQuery }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to search news.");
+      }
+
+      const data = await response.json();
+      if (data.articles.length === 0) {
+        setMessage({
+          type: "info",
+          text: "No articles found for your query. Try a different one.",
+        });
+      } else {
+        setSearchResults(data.articles);
+        setMessage({
+          type: "success",
+          text: `Found ${data.articles.length} articles.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error searching news:", error);
+      setMessage({ type: "error", text: `Search error: ${error.message}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectArticleAndSummarize = async (article) => {
+    setSelectedArticle(article);
+    setLoading(true);
+    setSummary("");
+    setTransHindi("");
+    setTransMarathi("");
+    setVideoPaths({}); // Clear video paths
+    setMessage({ type: "", text: "" });
+    setActiveTab("english");
+
+    try {
+      const response = await fetch("http://localhost:3001/process_article", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: article.url }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to process article.");
+      }
+
+      const data = await response.json();
+      setSummary(data.summary);
+      setTransHindi(data.trans_hindi);
+      setTransMarathi(data.trans_marathi);
+      setVideoPaths(data.video_paths || {}); // Set video paths
+
+      if (!data.summary) {
+        setMessage({
+          type: "warning",
+          text: "Could not generate summary for this article. Content might be insufficient or malformed.",
+        });
+      }
+      if (
+        !data.video_paths ||
+        Object.values(data.video_paths).every((v) => !v)
+      ) {
+        setMessage({
+          type: "info",
+          text: "Video generation failed or no image/summary available for video.",
+        });
+      }
+    } catch (error) {
+      console.error("Error processing article:", error);
+      setMessage({ type: "error", text: `Processing error: ${error.message}` });
+      setSelectedArticle(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getActiveVideoUrl = () => {
+    if (activeTab === "english" && videoPaths.english)
+      return videoPaths.english;
+    if (activeTab === "hindi" && videoPaths.hindi) return videoPaths.hindi;
+    if (activeTab === "marathi" && videoPaths.marathi)
+      return videoPaths.marathi;
+    return null;
+  };
+
   return (
     <div className="news-app-container">
       <h1 className="news-app-title">
@@ -104,21 +144,24 @@ const News = () => {
       </h1>
       <hr className="news-app-hr" />
 
-      {/* URL Input Section */}
+      {/* Search Input Section */}
       <div className="input-section">
         <input
           type="text"
-          className="url-input"
-          placeholder="Enter News Article URL:"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          className="search-input"
+          placeholder="Enter news search query (e.g., 'artificial intelligence')"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === "Enter") handleSearchNews();
+          }}
         />
         <button
-          className="process-button"
-          onClick={processArticle}
+          className="search-button"
+          onClick={handleSearchNews}
           disabled={loading}
         >
-          {loading ? "Analyzing..." : "Process Article"}
+          {loading ? "Searching..." : "Search News"}
         </button>
       </div>
 
@@ -127,99 +170,173 @@ const News = () => {
         <div className={`message ${message.type}`}>{message.text}</div>
       )}
 
-      {/* Article Content Display */}
-      {articleData && articleData.title && (
-        <div className="article-display-section">
-          <h2 className="section-subheader">Original Content</h2>
-          <p>
-            <strong>Title:</strong> {articleData.title}
-          </p>
+      {/* Search Results Display */}
+      {searchResults.length > 0 && !selectedArticle && (
+        <div className="search-results-section">
+          <h2 className="section-subheader">Search Results</h2>
+          <div className="articles-list">
+            {searchResults.map((article, index) => (
+              <div
+                key={index}
+                className="article-card"
+                onClick={() => handleSelectArticleAndSummarize(article)}
+              >
+                {article.image && (
+                  <img
+                    src={article.image}
+                    alt={article.title}
+                    className="article-card-image"
+                  />
+                )}
+                <div className="article-card-content">
+                  <h3>{article.title}</h3>
+                  <p className="article-card-description">
+                    {article.description}
+                  </p>
+                  <p className="article-card-meta">
+                    Source: {article.source} | Published:{" "}
+                    {new Date(article.publishedAt).toLocaleDateString()}
+                  </p>
+                  <button className="summarize-button">
+                    Summarize & Generate Video
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-          {articleData.top_image && (
+      {/* Selected Article Content Display and Summaries/Translations/Videos */}
+      {selectedArticle && (
+        <div className="selected-article-section">
+          <h2 className="section-subheader">Selected Article</h2>
+          <p>
+            <strong>Title:</strong> {selectedArticle.title}
+          </p>
+          {selectedArticle.image && (
             <img
-              src={articleData.top_image}
-              alt={articleData.title}
+              src={selectedArticle.image}
+              alt={selectedArticle.title}
               className="article-image"
             />
           )}
-          {!articleData.top_image &&
-            articleData.images &&
-            articleData.images.length > 0 && (
-              <img
-                src={articleData.images[0]}
-                alt={articleData.title}
-                className="article-image"
-              />
-            )}
-          {!articleData.top_image &&
-            (!articleData.images || articleData.images.length === 0) && (
-              <div className="info-message">
-                No main image found for this article.
-              </div>
-            )}
-
+          {!selectedArticle.image && (
+            <div className="info-message">
+              No main image found for this article.
+            </div>
+          )}
           <p>
-            <strong>Published:</strong> {articleData.publish_date || "N/A"}
+            <strong>Source:</strong> {selectedArticle.source}
           </p>
           <p>
-            <strong>Authors:</strong>{" "}
-            {(articleData.authors && articleData.authors.join(", ")) || "N/A"}
+            <strong>Published:</strong>{" "}
+            {new Date(selectedArticle.publishedAt).toLocaleDateString()}
           </p>
-        </div>
-      )}
+          <p>
+            <a
+              href={selectedArticle.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Read Full Article
+            </a>
+          </p>
 
-      {/* Summary and Translation Display */}
-      {summary && (
-        <div className="summary-section">
-          <h2 className="section-subheader">English Summary</h2>
-          <div className="summary-box success-box">
-            <p>{summary}</p>
-          </div>
+          {loading && <div className="loading-spinner"></div>}
 
-          <h2 className="section-subheader">Translations</h2>
-          <div className="translation-columns">
-            <div className="translation-column">
-              <h4>Hindi</h4>
-              <div className="translation-box info-box">
-                <p>{transHindi}</p>
+          {summary && (
+            <div className="summary-translation-video-section">
+              <div className="tabs">
+                <button
+                  className={`tab-button ${
+                    activeTab === "english" ? "active" : ""
+                  }`}
+                  onClick={() => setActiveTab("english")}
+                >
+                  English Summary
+                </button>
+                <button
+                  className={`tab-button ${
+                    activeTab === "hindi" ? "active" : ""
+                  }`}
+                  onClick={() => setActiveTab("hindi")}
+                >
+                  Hindi
+                </button>
+                <button
+                  className={`tab-button ${
+                    activeTab === "marathi" ? "active" : ""
+                  }`}
+                  onClick={() => setActiveTab("marathi")}
+                >
+                  Marathi
+                </button>
+              </div>
+
+              <div className="tab-content">
+                {/* Text Summaries */}
+                {activeTab === "english" && (
+                  <div className="summary-box success-box">
+                    <p>{summary}</p>
+                  </div>
+                )}
+                {activeTab === "hindi" && (
+                  <div className="translation-box info-box">
+                    <p>{transHindi}</p>
+                  </div>
+                )}
+                {activeTab === "marathi" && (
+                  <div className="translation-box info-box">
+                    <p>{transMarathi}</p>
+                  </div>
+                )}
+
+                {/* Video Player */}
+                <h3 className="section-subheader-small">
+                  Video Summary (Current Tab)
+                </h3>
+                <div className="video-player-container">
+                  {getActiveVideoUrl() ? (
+                    <video
+                      controls
+                      src={getActiveVideoUrl()}
+                      className="summary-video"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <div className="info-message">
+                      Video not available for this language/article (requires an
+                      image and summary).
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="translation-column">
-              <h4>Marathi</h4>
-              <div className="translation-box info-box">
-                <p>{transMarathi}</p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* Audio Controls */}
-      {summary && (
-        <div className="audio-controls-section">
-          <h2 className="section-subheader">Audio Summary</h2>
-          <button className="audio-button play" onClick={speakSummary}>
-            ▶️ Play Summary
-          </button>
-          <button className="audio-button stop" onClick={stopSummary}>
-            ⏹️ Stop Summary
-          </button>
-        </div>
-      )}
-
-      {/* Sidebar Info (can be integrated into the main layout or a true sidebar) */}
+      {/* Sidebar Info */}
       <div className="sidebar-info">
         <h3>About</h3>
         <p>This application uses:</p>
         <ul>
+          <li>
+            News API for article search (free tier limited to 10 articles)
+          </li>
           <li>Hugging Face Transformers for summarization</li>
-          <li>Newspaper3k for article extraction</li>
+          <li>Newspaper3k for article content extraction</li>
           <li>Googletrans for translations</li>
-          <li>Web Speech API for audio playback</li>
+          <li>gTTS and MoviePy for video generation</li>
+          <li>
+            Web Speech API for audio playback (removed client-side buttons)
+          </li>
         </ul>
         <p className="note-warning">
-          Note: Translation reliability depends on Google Translate's web
-          interface stability.
+          Note: Video generation can take time. Ensure `ffmpeg` is installed and
+          in your system's PATH on the backend server.
         </p>
       </div>
     </div>
