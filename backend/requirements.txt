@@ -1,0 +1,6 @@
+newspaper3k
+transformers 
+torch
+googletrans==3.1.0a0
+nltk
+lxml_html_clean
