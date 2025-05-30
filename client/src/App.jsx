@@ -1,23 +1,38 @@
-import React from "react";
-import Header from "./components/Header"; // Import the Header component
+import React, { useState } from "react";
+import Header from "./components/Header/Header"; // Import the Header component
 import "./index.css"; // Make sure your main CSS is imported here
 import Footer from "./components/Footer";
-import News from "./components/News";
+import News from "./components/News/News";
 
 function App() {
+  // State to hold the currently selected category
+  const [currentCategory, setCurrentCategory] = useState(""); // Initialize with empty or a default category
+
+  // Handler function to be called by Header when a category is selected
+  const handleCategorySelect = (category) => {
+    console.log("App.jsx: Category selected:", category);
+    setCurrentCategory(category);
+  };
+
   return (
     <div className="app-layout">
-      {" "}
-      {/* Use a class for overall layout if needed */}
-      <Header /> {/* Use the Header component here */}
+      {/* Pass the handleCategorySelect function to the Header */}
+      <Header onCategorySelect={handleCategorySelect} />
+
       {/* Main content area */}
       <main className="main-content-area">
         <div className="content-card">
-          <h2 className="content-title">Welcome to NewsManiac!</h2>
-          <p className="content-text">
-            This is the main content of your news application.
-          </p>
-          <News />
+          {/* You can remove this welcome message or keep it */}
+          {!currentCategory && ( // Only show welcome if no category is selected yet
+            <>
+              <h2 className="content-title">Welcome to NewsManiac!</h2>
+              <p className="content-text">
+                Select a category from the header or use the search bar below.
+              </p>
+            </>
+          )}
+          {/* Pass the currentCategory to the News component */}
+          <News selectedCategory={currentCategory} />
         </div>
       </main>
       <Footer />

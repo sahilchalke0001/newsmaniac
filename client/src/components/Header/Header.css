@@ -1,0 +1,76 @@
+.header-container {
+  background-color: royalblue;
+  padding: 15px 25px;
+  color: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.header-container {
+  background-color: #2563eb; /* A shade of blue */
+  padding: 1rem 0; /* Top/bottom padding */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  border-bottom-left-radius: 0.5rem; /* Rounded bottom-left corner */
+  border-bottom-right-radius: 0.5rem; /* Rounded bottom-right corner */
+}
+
+/* Content wrapper to center and limit width */
+.header-content {
+  max-width: 1200px; /* Max width like Tailwind's container */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem; /* Horizontal padding */
+  padding-right: 1rem; /* Horizontal padding */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-title {
+  font-size: 28px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+}
+
+.nav-links {
+  display: flex;
+  list-style: none;
+  gap: 20px;
+}
+
+.nav-item,
+.nav-link {
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 18px;
+  position: relative;
+}
+
+.nav-item:hover,
+.nav-link:hover {
+  color: #b3d9ff; /* Softer blue on hover */
+}
+
+.dropdown-menu {
+  position: absolute;
+  background-color: #e6f0ff; /* Light blue instead of white */
+  list-style: none;
+  padding: 10px 0;
+  margin-top: 10px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+}
+
+.dropdown-item {
+  color: #003366; /* Dark blue text */
+  padding: 8px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.dropdown-item:hover {
+  background-color: #cce0ff; /* Blue hover background */
+}

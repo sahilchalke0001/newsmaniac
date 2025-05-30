@@ -1,6 +1,6 @@
 // backend/server.js
 const express = require("express");
-const { spawn } = require("child_process");
+const { spawn } = require("child_process"); // <--- This is the correct declaration
 const cors = require("cors");
 const axios = require("axios"); // For making HTTP requests to external APIs
 const path = require("path"); // Import the 'path' module
@@ -95,7 +95,7 @@ app.post("/process_article", (req, res) => {
 
   pythonProcess.stderr.on("data", (data) => {
     pythonError += data.toString();
-    console.error(`Python stderr: ${data.toString()}`);
+    console.error(`Python stderr: ${data.toString()}`); // Good! Keep this for Python debugging
   });
 
   pythonProcess.on("close", (code) => {
@@ -135,37 +135,4 @@ app.post("/process_article", (req, res) => {
 // Start the Node.js server
 app.listen(PORT, () => {
   console.log(`Node.js backend listening at http://localhost:${PORT}`);
-});
-
-const { spawn } = require("child_process");
-
-const pythonProcess = spawn("python", ["your_python_script.py"]);
-
-pythonProcess.stdout.on("data", (data) => {
-  try {
-    const result = JSON.parse(data.toString());
-    console.log("Python script stdout (JSON result):", result);
-    // Process the result, check for video_path
-  } catch (e) {
-    console.error("Failed to parse JSON from Python stdout:", e.message);
-    console.error("Raw Python stdout:", data.toString()); // Log raw output for debugging malformed JSON
-  }
-});
-
-pythonProcess.stderr.on("data", (data) => {
-  // THIS IS THE MOST IMPORTANT PART FOR YOUR CURRENT PROBLEM
-  console.error("Python script stderr:", data.toString());
-});
-
-pythonProcess.on("close", (code) => {
-  console.log(`Python script exited with code ${code}`);
-  if (code !== 0) {
-    console.error(
-      "Python script exited with non-zero code, indicating an error."
-    );
-  }
-});
-
-pythonProcess.on("error", (err) => {
-  console.error("Failed to start Python process:", err);
 });
