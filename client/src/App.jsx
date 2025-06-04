@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Header from "./components/Header/Header"; // Import the Header component
 import "./index.css"; // Make sure your main CSS is imported here
-import Footer from "./components/Footer";
+import Footer from "./components/Footer/Footer";
 import News from "./components/News/News";
 
 function App() {
@@ -27,7 +27,8 @@ function App() {
             <>
               <h2 className="content-title">Welcome to NewsManiac!</h2>
               <p className="content-text">
-                Select a category from the header or use the search bar below.
+                This site helps you summarize news articles and create engaging
+                posts and reels for social media.
               </p>
             </>
           )}

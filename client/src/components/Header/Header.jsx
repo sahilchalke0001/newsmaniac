@@ -21,11 +21,6 @@ const Header = ({ onCategorySelect }) => {
         <h1 className="app-title">NewsManiac</h1>
         <nav>
           <ul className="nav-links">
-            <li>
-              <a href="#" className="nav-item">
-                Home
-              </a>
-            </li>
             <li className="nav-item dropdown">
               <span className="nav-link" onClick={toggleDropdown}>
                 Categories ▾
@@ -79,16 +74,6 @@ const Header = ({ onCategorySelect }) => {
                   </li>
                 </ul>
               )}
-            </li>
-            <li>
-              <a href="#" className="nav-item">
-                About Us
-              </a>
-            </li>
-            <li>
-              <a href="#" className="nav-item">
-                Contact
-              </a>
             </li>
           </ul>
         </nav>

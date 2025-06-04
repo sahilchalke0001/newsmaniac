@@ -74,3 +74,32 @@
 .dropdown-item:hover {
   background-color: #cce0ff; /* Blue hover background */
 }
+
+.app-title {
+  color: #ffffff; /* White text */
+  font-size: 2.25rem; /* Equivalent to text-3xl */
+  font-weight: 700; /* Equivalent to font-bold */
+  letter-spacing: 0.05em; /* Equivalent to tracking-wider */
+  margin: 0; /* Remove default h1 margin */
+}
+
+/* Navigation Links List */
+.nav-links {
+  display: flex;
+  list-style: none; /* Remove bullet points */
+  margin: 0;
+  padding: 0;
+  gap: 1.5rem; /* Equivalent to space-x-6 */
+}
+
+/* Individual Navigation Item */
+.nav-item {
+  color: #ffffff; /* White text */
+  text-decoration: none; /* Remove underline */
+  font-size: 1.125rem; /* Equivalent to text-lg */
+  transition: color 0.3s ease-in-out; /* Smooth transition for hover */
+}
+
+.nav-item:hover {
+  color: #bfdbfe; /* A lighter blue on hover */
+}

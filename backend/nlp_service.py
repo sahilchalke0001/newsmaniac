@@ -15,7 +15,7 @@ import time # Import the time module for delays
 from newspaper import Article, Config # Import Config for custom user-agent
 from transformers import pipeline
 from gtts import gTTS
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter # Import ImageFilter for potential blur
 from pydub import AudioSegment
 from googletrans import Translator
 import traceback
@@ -52,8 +52,8 @@ else:
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 sys.stderr.write(f"Device set to use {DEVICE}\n")
 
-# Path for saving generated videos. Ensure this directory exists.
-# Videos will be served by Node.js from http://localhost:3001/uploads/
+# Path for saving generated videos and images. Ensure this directory exists.
+# Files will be served by Node.js from http://localhost:3001/uploads/
 VIDEO_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(VIDEO_OUTPUT_DIR, exist_ok=True) # Ensure directory exists
 
@@ -220,6 +220,66 @@ def add_text_to_image_with_background(image_pil, text_to_display, font_size, tex
         current_y += line_heights[i] + (font_size * (line_spacing_factor - 1)) # Add spacing based on factor
     return image_pil
 
+def add_text_to_image_bottom_with_background(image_pil, text_to_display, font_size, text_color, background_color, max_width_chars, line_spacing_factor=1.0, bottom_margin=20):
+    draw = ImageDraw.Draw(image_pil)
+    font_path = get_font_path("arial.ttf")
+
+    try:
+        if font_path:
+            font = ImageFont.truetype(font_path, font_size)
+        else:
+            font = ImageFont.load_default()
+    except Exception as e:
+        sys.stderr.write(f"Error loading specified font: {e}. Falling back to default font.\n")
+        font = ImageFont.load_default()
+
+    lines = split_text_into_lines(text_to_display, max_width_chars)
+
+    # Calculate total text height and bounding box for positioning
+    total_text_height = 0
+    line_heights = []
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        line_height = bbox[3] - bbox[1]
+        line_heights.append(line_height)
+        total_text_height += line_height
+
+    total_height_with_spacing = total_text_height + (len(lines) - 1) * (font_size * (line_spacing_factor - 1))
+
+    # Calculate initial y for bottom alignment
+    y_start_text = image_pil.height - total_height_with_spacing - bottom_margin
+
+    current_y = y_start_text
+    text_padding = 15
+
+    max_line_width = 0
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        max_line_width = max(max_line_width, bbox[2] - bbox[0])
+
+    # Draw background rectangle for the entire block of text
+    bg_rect_x1 = (image_pil.width - max_line_width) // 2 - text_padding
+    bg_rect_y1 = y_start_text - text_padding
+    bg_rect_x2 = (image_pil.width + max_line_width) // 2 + text_padding
+    bg_rect_y2 = image_pil.height - bottom_margin + text_padding # Extend to bottom margin
+
+    # Ensure background rectangle is within image bounds
+    bg_rect_x1 = max(0, bg_rect_x1)
+    bg_rect_y1 = max(0, bg_rect_y1)
+    bg_rect_x2 = min(image_pil.width, bg_rect_x2)
+    bg_rect_y2 = min(image_pil.height, bg_rect_y2)
+
+    draw.rectangle([bg_rect_x1, bg_rect_y1, bg_rect_x2, bg_rect_y2], fill=background_color)
+
+    # Draw text line by line
+    for i, line in enumerate(lines):
+        bbox = draw.textbbox((0, 0), line, font=font)
+        line_width = bbox[2] - bbox[0]
+        x_text = (image_pil.width - line_width) // 2
+        draw.text((x_text, current_y), line, font=font, fill=text_color)
+        current_y += line_heights[i] + (font_size * (line_spacing_factor - 1))
+    return image_pil
+
 
 def generate_video_from_summary(summary, image_url, output_dir, output_filename="summary_video.mp4"):
     temp_files = []
@@ -349,6 +409,79 @@ def generate_video_from_summary(summary, image_url, output_dir, output_filename=
                 os.remove(f)
                 # sys.stderr.write(f"DEBUG: Cleaned up temporary file: {f}\n") # Too verbose
 
+def generate_post_image(summary, background_image_url, output_dir, output_filename="summary_post.png"):
+    """
+    Generates a static image post with summary text at the bottom.
+    """
+    try:
+        if not summary:
+            sys.stderr.write("Error: Summary missing for post image generation.\n")
+            return None
+
+        # 1. Download and process background image
+        # Use a generic news image if no specific URL is provided or if download fails
+        if background_image_url:
+            try:
+                img_response = requests.get(background_image_url, stream=True)
+                img_response.raise_for_status()
+                base_img_pil = Image.open(io.BytesIO(img_response.content)).convert("RGB")
+            except requests.exceptions.RequestException as e:
+                sys.stderr.write(f"Warning: Could not download background image from {background_image_url}: {e}. Using placeholder.\n")
+                base_img_pil = None
+            except Exception as e:
+                sys.stderr.write(f"Warning: Error processing background image: {e}. Using placeholder.\n")
+                base_img_pil = None
+        else:
+            base_img_pil = None
+
+        target_width = 1080 # Standard social media post width
+        target_height = 1080 # Standard social media post height (square)
+
+        if base_img_pil is None:
+            # Fallback to a generic news-themed placeholder image
+            # Using a placeholder service like placehold.co
+            placeholder_url = f"https://placehold.co/{target_width}x{target_height}/000000/FFFFFF?text=News+Summary"
+            try:
+                img_response = requests.get(placeholder_url, stream=True)
+                img_response.raise_for_status()
+                base_img_pil = Image.open(io.BytesIO(img_response.content)).convert("RGB")
+            except Exception as e:
+                sys.stderr.write(f"Error downloading placeholder image: {e}. Creating a blank image.\n")
+                base_img_pil = Image.new("RGB", (target_width, target_height), (0, 0, 0)) # Black fallback
+
+        base_img_pil = resize_and_pad_image(base_img_pil, target_width, target_height)
+
+        # Optional: Add a subtle overlay to improve text readability on busy backgrounds
+        overlay = Image.new('RGBA', base_img_pil.size, (0, 0, 0, 80)) # Semi-transparent black overlay
+        base_img_pil = Image.alpha_composite(base_img_pil.convert('RGBA'), overlay).convert('RGB')
+
+
+        # Add text with background to the bottom of the image
+        add_text_to_image_bottom_with_background(
+            base_img_pil,
+            summary,
+            font_size=40,  # Medium font size for post
+            text_color=(0, 0, 0),  # Black text
+            background_color=(255, 255, 255), # White background
+            max_width_chars=45, # Adjusted for medium font
+            line_spacing_factor=1.0 # No extra space between lines
+        )
+
+        # Save the generated post image
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        final_post_relative_path = os.path.join('uploads', output_filename) # Relative path for client
+        final_post_full_path = os.path.join(output_dir, output_filename)
+        
+        base_img_pil.save(final_post_full_path)
+        sys.stderr.write(f"DEBUG: Post image successfully generated at {final_post_full_path}\n")
+        return final_post_relative_path
+
+    except Exception as e:
+        sys.stderr.write(f"An unexpected error occurred during post image generation: {e}\n")
+        sys.stderr.write(f"Traceback: {traceback.format_exc()}\n")
+        return None
+
 
 # --- Main Article Processing Function ---
 def process_article(url):
@@ -360,6 +493,7 @@ def process_article(url):
         "authors": [],
         "publish_date": None,
         "video_path": None,
+        "post_image_path": None, # New field for post image
         "trans_hindi": None,
         "trans_marathi": None,
         "error": None
@@ -469,6 +603,42 @@ def process_article(url):
                     response_data["error"] = "No summary or top image for video generation."
                 sys.stderr.write("Warning: Skipping video generation (no summary or top image).\n")
             
+            # 5. Post Image Generation (New Step)
+            if response_data["summary"]:
+                try:
+                    post_image_filename = f"summary_post_{os.urandom(8).hex()}.png"
+                    post_image_path = generate_post_image(
+                        response_data["summary"],
+                        response_data["top_image"], # Use article's top image as background
+                        VIDEO_OUTPUT_DIR, # Save in the same uploads directory
+                        output_filename=post_image_filename
+                    )
+                    response_data["post_image_path"] = post_image_path
+                    if not post_image_path:
+                        current_error = response_data.get("error")
+                        if current_error:
+                            response_data["error"] = current_error + " Post image generation failed."
+                        else:
+                            response_data["error"] = "Post image generation failed."
+                except Exception as e:
+                    response_data["post_image_path"] = None
+                    current_error = response_data.get("error")
+                    error_msg_to_add = f" Unexpected post image generation error: {e}"
+                    if current_error:
+                        response_data["error"] = current_error + error_msg_to_add
+                    else:
+                        response_data["error"] = error_msg_to_add
+                    sys.stderr.write(f"Unhandled error during post image generation: {e}\n")
+                    sys.stderr.write(f"Traceback: {traceback.format_exc()}\n")
+            else:
+                current_error = response_data.get("error")
+                if current_error:
+                    response_data["error"] = current_error + " No summary for post image generation."
+                else:
+                    response_data["error"] = "No summary for post image generation."
+                sys.stderr.write("Warning: Skipping post image generation (no summary).\n")
+
+
             # If we reached here, article processing was successful, break the retry loop
             break 
 

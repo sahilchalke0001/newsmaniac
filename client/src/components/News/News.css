@@ -498,3 +498,53 @@
     font-size: 0.9em;
   }
 }
+
+.or-divider {
+  text-align: center;
+  font-weight: bold;
+  margin: 20px auto;
+  color: #666;
+  position: relative;
+  width: 100%;
+}
+
+/* New Post Image Section Styles */
+.post-image-section {
+  margin-top: 40px;
+  padding: 20px;
+  background-color: #f0f4f8;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.summary-post-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.download-button {
+  display: block; /* Changed to block for centering with margin auto */
+  background-color: #28a745; /* Green color for download */
+  color: white;
+  padding: 10px 20px;
+  margin-top: 25px; /* Increased gap from the video */
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  text-decoration: none; /* Remove underline from link */
+  transition: background-color 0.3s ease;
+  /* Removed align-self: center; as it's now a block element and can use margin: auto */
+  margin-left: auto; /* Center horizontally */
+  margin-right: auto; /* Center horizontally */
+}
+
+.download-button:hover {
+  background-color: #218838; /* Darker green on hover */
+}

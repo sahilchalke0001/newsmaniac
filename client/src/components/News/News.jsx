@@ -209,6 +209,17 @@ const News = ({ selectedCategory }) => {
     return null;
   };
 
+  // Function to get the URL for the post image
+  const getPostImageUrl = () => {
+    if (processedArticleDetails && processedArticleDetails.post_image_path) {
+      return `http://localhost:3001/${processedArticleDetails.post_image_path.replace(
+        /\\/g,
+        "/"
+      )}`;
+    }
+    return null;
+  };
+
   // Function to get the summary text for the active tab
   const getActiveSummaryText = () => {
     if (processedArticleDetails) {
@@ -285,7 +296,7 @@ const News = ({ selectedCategory }) => {
             : "Search News"}
         </button>
       </div>
-      <br></br>
+      <div className="or-divider">OR</div> {/* Divider */}
       {/* URL Input Section */}
       <div className="input-section">
         <input
@@ -529,6 +540,29 @@ const News = ({ selectedCategory }) => {
                       </div>
                     )}
                   </div>
+
+                  {/* Post Image Section */}
+                  {getPostImageUrl() && (
+                    <div className="post-image-section">
+                      <h3 className="section-subheader-small">
+                        Shareable Image Post
+                      </h3>
+                      <img
+                        src={getPostImageUrl()}
+                        alt="Summary Post"
+                        className="summary-post-image"
+                      />
+                      <a
+                        href={getPostImageUrl()}
+                        target="_blank" // Open in new tab
+                        rel="noopener noreferrer" // Security best practice
+                        // Removed 'download' attribute to prevent direct download
+                        className="download-button" // Reusing button style
+                      >
+                        Open Image Post
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
