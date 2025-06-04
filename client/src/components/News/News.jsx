@@ -5,6 +5,8 @@ import "./News.css"; // Re-import the CSS file
 const News = ({ selectedCategory }) => {
   // State for the search query, can be set by typing or by selectedCategory prop
   const [searchQuery, setSearchQuery] = useState("");
+  // New state for direct URL input
+  const [urlInput, setUrlInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [selectedArticle, setSelectedArticle] = useState(null); // Stores the original article object from search results (News API)
@@ -18,6 +20,7 @@ const News = ({ selectedCategory }) => {
   useEffect(() => {
     if (selectedCategory) {
       setSearchQuery(selectedCategory);
+      setUrlInput(""); // Clear URL input when category is selected
     } else {
       // If selectedCategory is cleared, also clear search results and selected article
       setSearchQuery(""); // Clear the search bar
@@ -47,6 +50,7 @@ const News = ({ selectedCategory }) => {
     setProcessedArticleDetails(null); // Clear processed details on new search
     setMessage({ type: "", text: "" });
     setActiveTab("english");
+    setUrlInput(""); // Clear URL input when performing a search
 
     try {
       const response = await fetch("http://localhost:3001/search_news", {
@@ -83,26 +87,33 @@ const News = ({ selectedCategory }) => {
     }
   }, [searchQuery]); // Dependencies for useCallback: searchQuery. State setters are stable.
 
-  // Effect to trigger search when searchQuery changes (either from typing or category selection)
-  useEffect(() => {
-    if (searchQuery) {
-      handleSearchNews();
-    } else {
-      // If searchQuery is cleared, clear results and selected article
-      setSearchResults([]);
+  // New function to handle direct URL summarization
+  const handleSummarizeUrl = useCallback(async () => {
+    if (!urlInput) {
+      setMessage({ type: "info", text: "Please enter a URL to summarize." });
       setSelectedArticle(null);
       setProcessedArticleDetails(null);
-      setMessage({ type: "", text: "" });
+      return;
     }
-  }, [searchQuery, handleSearchNews]); // Depend on searchQuery and the memoized handleSearchNews
 
-  // Function to handle article selection and summarization
-  const handleSelectArticleAndSummarize = async (article) => {
-    setSelectedArticle(article); // Store the original article data
+    // Basic URL validation
+    try {
+      new URL(urlInput);
+    } catch (_) {
+      setMessage({
+        type: "error",
+        text: "Invalid URL format. Please enter a valid URL.",
+      });
+      return;
+    }
+
     setLoading(true);
+    setSearchResults([]); // Clear search results when summarizing a URL
+    setSelectedArticle(null); // Clear previous selected article
     setProcessedArticleDetails(null); // Clear previous processed data
     setMessage({ type: "", text: "" });
     setActiveTab("english");
+    setSearchQuery(""); // Clear search query when summarizing a URL
 
     try {
       const response = await fetch("http://localhost:3001/process_article", {
@@ -110,7 +121,7 @@ const News = ({ selectedCategory }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url: article.url }),
+        body: JSON.stringify({ url: urlInput }),
       });
 
       if (!response.ok) {
@@ -137,7 +148,7 @@ const News = ({ selectedCategory }) => {
       } else if (!data.summary) {
         setMessage({
           type: "warning",
-          text: "Could not generate summary for this article. Content might be insufficient or malformed.",
+          text: "Could not generate summary for this URL. Content might be insufficient or malformed.",
         });
       } else if (!data.video_path) {
         // Check for video_path directly from the backend response
@@ -151,15 +162,40 @@ const News = ({ selectedCategory }) => {
           text: "Article processed successfully and video generated!",
         });
       }
+
+      // Set a dummy selected article for display purposes if successful
+      if (data.summary) {
+        setSelectedArticle({
+          title: data.title || "Summarized Article", // Use title from backend or a default
+          url: urlInput,
+          image: data.top_image,
+          source: "Direct URL",
+          publishedAt: data.publish_date || new Date().toISOString(),
+        });
+      }
     } catch (error) {
-      console.error("Error processing article:", error);
+      console.error("Error processing URL:", error);
       setMessage({ type: "error", text: `Processing error: ${error.message}` });
       setSelectedArticle(null); // Clear selected article on processing error
       setProcessedArticleDetails(null); // Clear processed data on processing error
     } finally {
       setLoading(false);
     }
-  };
+  }, [urlInput]); // Dependency for useCallback: urlInput
+
+  // Effect to trigger search when searchQuery changes (either from typing or category selection)
+  useEffect(() => {
+    if (searchQuery && !urlInput) {
+      // Only search if searchQuery is present and no URL input
+      handleSearchNews();
+    } else if (!searchQuery && !urlInput) {
+      // If both are cleared, clear results and selected article
+      setSearchResults([]);
+      setSelectedArticle(null);
+      setProcessedArticleDetails(null);
+      setMessage({ type: "", text: "" });
+    }
+  }, [searchQuery, handleSearchNews, urlInput]); // Depend on searchQuery, urlInput, and the memoized handleSearchNews
 
   // Function to get the URL for the video, ensuring correct path format
   const getActiveVideoUrl = () => {
@@ -220,53 +256,67 @@ const News = ({ selectedCategory }) => {
     };
   }, []);
 
-  // Manual search trigger for the button
-  const manualSearchTrigger = () => {
-    handleSearchNews();
-  };
-
   return (
     <div className="news-app-container">
       <h1 className="news-app-title">
         📰 News Article Summarizer & Translator
       </h1>
       <hr className="news-app-hr" />
-
       {/* Search Input Section */}
       <div className="input-section">
         <input
           type="text"
           className="search-input"
-          placeholder="Enter news search query (e.g., 'artificial intelligence') or select a category"
+          placeholder="Enter news search query (e.g., 'artificial intelligence')"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyPress={(e) => {
-            if (e.key === "Enter") manualSearchTrigger();
+            if (e.key === "Enter") handleSearchNews();
           }}
+          disabled={loading} // Disable while loading
         />
         <button
           className="search-button"
-          onClick={manualSearchTrigger}
+          onClick={handleSearchNews}
           disabled={loading}
         >
-          {loading && !selectedArticle
+          {loading && !selectedArticle && searchQuery
             ? "Searching..."
-            : loading && selectedArticle
-            ? "Processing..."
             : "Search News"}
         </button>
       </div>
-
+      <br></br>
+      {/* URL Input Section */}
+      <div className="input-section">
+        <input
+          type="text"
+          className="search-input" // Reusing search-input style
+          placeholder="Paste article URL here (e.g., https://example.com/article)"
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === "Enter") handleSummarizeUrl();
+          }}
+          disabled={loading} // Disable while loading
+        />
+        <button
+          className="search-button" // Reusing search-button style
+          onClick={handleSummarizeUrl}
+          disabled={loading}
+        >
+          {loading && !selectedArticle && urlInput
+            ? "Processing URL..."
+            : "Summarize URL"}
+        </button>
+      </div>
       {/* Messages */}
       {message.text && (
         <div className={`message ${message.type}`}>{message.text}</div>
       )}
-
       {/* Loading indicator specifically for search results loading (not article processing) */}
       {loading && !selectedArticle && searchResults.length === 0 && (
         <div className="loading-spinner-search"></div>
       )}
-
       {/* Search Results Display */}
       {!loading && searchResults.length > 0 && !selectedArticle && (
         <div className="search-results-section">
@@ -308,7 +358,6 @@ const News = ({ selectedCategory }) => {
           </div>
         </div>
       )}
-
       {/* Selected Article Content Display and Summaries/Translations/Videos */}
       {selectedArticle && (
         <div className="selected-article-section">
@@ -318,9 +367,11 @@ const News = ({ selectedCategory }) => {
               setSelectedArticle(null);
               setProcessedArticleDetails(null); // Clear processed details when going back
               setMessage({ type: "", text: "" }); /* Keep searchResults */
+              setSearchQuery(""); // Clear search query when going back
+              setUrlInput(""); // Clear URL input when going back
             }}
           >
-            &larr; Back to Search Results
+            &larr; Back to Main Options
           </button>
           <h2 className="section-subheader">Selected Article</h2>
           <p>
@@ -492,7 +543,6 @@ const News = ({ selectedCategory }) => {
             )}
         </div>
       )}
-
       {/* Sidebar Info (existing) */}
       <div className="sidebar-info">
         <h3>About</h3>
