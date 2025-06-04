@@ -16,6 +16,7 @@
   color: #2563eb;
   margin-bottom: 20px;
   font-size: 2em;
+  font-weight: bold; /* Added for bold title */
 }
 
 .news-app-hr {
@@ -29,6 +30,7 @@
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  flex-direction: column; /* Default for mobile */
 }
 
 .search-input {
@@ -37,6 +39,13 @@
   border: 1px solid #ddd;
   border-radius: 5px;
   font-size: 1em;
+  outline: none; /* Remove default outline */
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); /* Reset shadow */
+}
+
+.search-input:focus {
+  border-color: #2563eb; /* Blue border on focus */
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5); /* Blue ring on focus */
 }
 
 .search-button {
@@ -191,12 +200,48 @@
   background-color: #4cae4c;
 }
 
+/* Back to Results Button */
+.back-to-results-button {
+  background-color: royalblue;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  margin-bottom: 20px; /* Added margin-bottom */
+}
+
+.back-to-results-button:hover {
+  background-color: #2b5dd1;
+  transform: translateY(-2px);
+}
+
+.back-to-results-button:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Read Full Article Link */
+.read-full-article-link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.read-full-article-link:hover {
+  text-decoration: underline;
+}
+
 /* Tabs for Summary/Translations */
 .tabs {
   display: flex;
   border-bottom: 1px solid #ddd;
   margin-top: 20px;
   margin-bottom: 15px;
+  flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
 }
 
 .tab-button {
@@ -210,6 +255,7 @@
   border-top-right-radius: 5px;
   transition: background-color 0.3s ease, color 0.3s ease;
   margin-right: 5px;
+  margin-bottom: 5px; /* Added margin-bottom for wrapped tabs */
 }
 
 .tab-button:hover:not(.active) {
@@ -247,6 +293,60 @@
   border: 1px solid #bee5eb;
 }
 
+/* Audio Player Styles */
+.audio-controls-section {
+  display: flex;
+  gap: 15px; /* Gap between buttons */
+  margin-top: 20px;
+  margin-bottom: 20px;
+  align-items: center; /* Vertically align items */
+  flex-wrap: wrap; /* Allow buttons to wrap */
+}
+
+.audio-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Full height for vertical centering */
+  gap: 20px; /* Space between buttons */
+}
+
+.play-button {
+  background-color: #3546dc; /* Purple */
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.play-button:hover {
+  background-color: #69c0e5;
+}
+
+.stop-button {
+  background-color: #3546dc; /* Red */
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.stop-button:hover {
+  background-color: #69c0e5;
+}
+
 /* Video Player Styles */
 .video-player-container {
   margin-top: 20px;
@@ -254,12 +354,37 @@
   border-radius: 8px;
   overflow: hidden; /* Ensures video corners are rounded */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex; /* Use flexbox for centering content */
+  flex-direction: column; /* Stack video and button vertically */
+  align-items: center; /* Center horizontally */
+  padding-bottom: 20px; /* Add padding at the bottom for the button */
 }
 
 .summary-video {
   width: 100%;
   height: auto; /* Maintain aspect ratio */
   display: block;
+}
+
+.download-button {
+  display: inline-block; /* Changed to block for centering with margin auto */
+  background-color: #28a745; /* Green color for download */
+  color: white;
+  padding: 10px 20px;
+  margin-top: 25px; /* Increased gap from the video */
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  text-decoration: none; /* Remove underline from link */
+  transition: background-color 0.3s ease;
+  /* Removed align-self: center; as it's now a block element and can use margin: auto */
+  margin-left: auto; /* Center horizontally */
+  margin-right: auto; /* Center horizontally */
+}
+
+.download-button:hover {
+  background-color: #218838; /* Darker green on hover */
 }
 
 .sidebar-info {
@@ -306,6 +431,17 @@
   margin: 20px auto;
 }
 
+.loading-spinner-search {
+  /* Specific spinner for search results */
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #2563eb;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -316,16 +452,33 @@
 }
 
 /* Responsive adjustments */
+@media (min-width: 640px) {
+  /* Equivalent to sm: */
+  .input-section {
+    flex-direction: row; /* Back to row on small screens and up */
+  }
+}
+
+@media (min-width: 768px) {
+  /* Equivalent to md: */
+  .articles-list {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Equivalent to lg: */
+  .articles-list {
+    grid-template-columns: repeat(3, 1fr); /* 3 columns on large screens */
+  }
+}
+
 @media (max-width: 768px) {
   .news-app-container {
     padding: 15px;
   }
   .input-section {
-    flex-direction: column;
     gap: 15px;
-  }
-  .articles-list {
-    grid-template-columns: 1fr;
   }
   .tabs {
     flex-wrap: wrap;
@@ -344,27 +497,4 @@
     padding: 10px;
     font-size: 0.9em;
   }
-}
-
-.back-to-results-button {
-  background-color: royalblue;
-  color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.back-to-results-button:hover {
-  background-color: #2b5dd1;
-  transform: translateY(-2px);
-}
-
-.back-to-results-button:active {
-  transform: scale(0.98);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
 }

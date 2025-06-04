@@ -15,8 +15,6 @@ const NEWS_API_URL = "https://newsapi.org/v2/everything";
 app.use(cors()); // Enable CORS for all origins
 app.use(express.json()); // Middleware to parse JSON request bodies
 
-// --- Serve Static Files (for generated videos) ---
-// This allows the frontend to access generated videos via a URL like http://localhost:3001/uploads/video_name.mp4
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- IMPORTANT: Path to your Python executable within the Conda environment ---

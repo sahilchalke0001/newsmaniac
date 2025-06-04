@@ -1,52 +1,50 @@
 // src/components/News.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import "./News.css";
+import "./News.css"; // Re-import the CSS file
 
 const News = ({ selectedCategory }) => {
   // State for the search query, can be set by typing or by selectedCategory prop
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedArticle, setSelectedArticle] = useState(null);
-  const [summary, setSummary] = useState("");
-  const [transHindi, setTransHindi] = useState("");
-  const [transMarathi, setTransMarathi] = useState("");
+  const [selectedArticle, setSelectedArticle] = useState(null); // Stores the original article object from search results (News API)
+  const [processedArticleDetails, setProcessedArticleDetails] = useState(null); // Stores the full response from /process_article endpoint
   const [message, setMessage] = useState({ type: "", text: "" });
   const [activeTab, setActiveTab] = useState("english"); // 'english', 'hindi', 'marathi'
-  const [videoPaths, setVideoPaths] = useState({}); // Stores URLs to generated videos
+
+  const audioPlayedRef = useRef(false);
 
   // Effect to update searchQuery state when selectedCategory prop changes
   useEffect(() => {
     if (selectedCategory) {
       setSearchQuery(selectedCategory);
-      // The actual search will be triggered by the useEffect watching handleSearchNews (which depends on searchQuery)
     } else {
-      // Optional: Clear search if no category is selected.
-      // Depending on desired behavior, you might want to clear searchQuery or load default news.
-      // For now, if selectedCategory is null/undefined, searchQuery remains as is or its last value.
-      // If you want to clear it:
-      // setSearchQuery("");
+      // If selectedCategory is cleared, also clear search results and selected article
+      setSearchQuery(""); // Clear the search bar
+      setSearchResults([]);
+      setSelectedArticle(null);
+      setProcessedArticleDetails(null);
+      setMessage({ type: "", text: "" });
     }
   }, [selectedCategory]);
 
   // Memoized function to handle the news search API call
   const handleSearchNews = useCallback(async () => {
     if (!searchQuery) {
-      // Avoid searching if searchQuery is empty.
-      // Optionally, set a message or clear results.
-      // setMessage({ type: "info", text: "Enter a query or select a category to search." });
-      // setSearchResults([]); // Clear previous results if query is cleared
-      // setSelectedArticle(null);
+      setMessage({
+        type: "info",
+        text: "Enter a query or select a category to search.",
+      });
+      setSearchResults([]);
+      setSelectedArticle(null);
+      setProcessedArticleDetails(null);
       return;
     }
 
     setLoading(true);
     setSearchResults([]);
     setSelectedArticle(null);
-    setSummary("");
-    setTransHindi("");
-    setTransMarathi("");
-    setVideoPaths({});
+    setProcessedArticleDetails(null); // Clear processed details on new search
     setMessage({ type: "", text: "" });
     setActiveTab("english");
 
@@ -74,7 +72,7 @@ const News = ({ selectedCategory }) => {
         setSearchResults(data.articles);
         setMessage({
           type: "success",
-          text: `Found ${data.articles.length} articles.`,
+          text: `Found ${data.articles.length} articles. Click on an article to summarize and generate video.`,
         });
       }
     } catch (error) {
@@ -83,44 +81,26 @@ const News = ({ selectedCategory }) => {
     } finally {
       setLoading(false);
     }
-  }, [
-    searchQuery,
-    setLoading,
-    setSearchResults,
-    setSelectedArticle,
-    setSummary,
-    setTransHindi,
-    setTransMarathi,
-    setVideoPaths,
-    setMessage,
-    setActiveTab,
-  ]);
-  // Dependencies for useCallback: searchQuery and all state setters it uses.
-  // State setters are stable, so searchQuery is the primary changing dependency here.
+  }, [searchQuery]); // Dependencies for useCallback: searchQuery. State setters are stable.
 
-  // Effect to trigger search when handleSearchNews function reference changes
-  // (which happens when its dependency 'searchQuery' changes)
+  // Effect to trigger search when searchQuery changes (either from typing or category selection)
   useEffect(() => {
     if (searchQuery) {
-      // Only trigger if there's a searchQuery
       handleSearchNews();
     } else {
-      // If searchQuery is cleared (e.g. by selectedCategory becoming null and clearing it),
-      // you might want to clear results here.
+      // If searchQuery is cleared, clear results and selected article
       setSearchResults([]);
       setSelectedArticle(null);
+      setProcessedArticleDetails(null);
       setMessage({ type: "", text: "" });
     }
-  }, [handleSearchNews]); // Depends on the memoized handleSearchNews
+  }, [searchQuery, handleSearchNews]); // Depend on searchQuery and the memoized handleSearchNews
 
-  // Function to handle article selection and summarization (existing logic)
+  // Function to handle article selection and summarization
   const handleSelectArticleAndSummarize = async (article) => {
-    setSelectedArticle(article);
+    setSelectedArticle(article); // Store the original article data
     setLoading(true);
-    setSummary("");
-    setTransHindi("");
-    setTransMarathi("");
-    setVideoPaths({});
+    setProcessedArticleDetails(null); // Clear previous processed data
     setMessage({ type: "", text: "" });
     setActiveTab("english");
 
@@ -134,61 +114,104 @@ const News = ({ selectedCategory }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process article.");
+        const errorBody = await response.text();
+        let errorMessage = `HTTP error! Status: ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorBody);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = errorBody || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      setSummary(data.summary);
-      setTransHindi(data.trans_hindi);
-      setTransMarathi(data.trans_marathi);
-      setVideoPaths(data.video_paths || {});
+      setProcessedArticleDetails(data); // Store the entire processed data
 
-      if (!data.summary) {
+      if (data.error) {
+        setMessage({
+          type: "error",
+          text: `Backend processing error: ${data.error}`,
+        });
+        setProcessedArticleDetails(null); // Clear processed data on backend error
+      } else if (!data.summary) {
         setMessage({
           type: "warning",
           text: "Could not generate summary for this article. Content might be insufficient or malformed.",
         });
-      }
-      if (
-        !data.video_paths ||
-        Object.values(data.video_paths).every((v) => !v)
-      ) {
-        // Update message only if it's not already an error/warning from summary
-        if (
-          !message.text ||
-          message.type === "success" ||
-          message.type === "info"
-        ) {
-          setMessage({
-            type: "info",
-            text:
-              message.text +
-              (message.text ? " " : "") +
-              "Video generation failed or no image/summary available for video.",
-          });
-        }
+      } else if (!data.video_path) {
+        // Check for video_path directly from the backend response
+        setMessage({
+          type: "info",
+          text: "Article summarized, but video generation failed or no image/summary available for video.",
+        });
+      } else {
+        setMessage({
+          type: "success",
+          text: "Article processed successfully and video generated!",
+        });
       }
     } catch (error) {
       console.error("Error processing article:", error);
       setMessage({ type: "error", text: `Processing error: ${error.message}` });
-      setSelectedArticle(null);
+      setSelectedArticle(null); // Clear selected article on processing error
+      setProcessedArticleDetails(null); // Clear processed data on processing error
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to get active video URL (existing logic)
+  // Function to get the URL for the video, ensuring correct path format
   const getActiveVideoUrl = () => {
-    if (activeTab === "english" && videoPaths.english)
-      return videoPaths.english;
-    if (activeTab === "hindi" && videoPaths.hindi) return videoPaths.hindi;
-    if (activeTab === "marathi" && videoPaths.marathi)
-      return videoPaths.marathi;
+    if (processedArticleDetails && processedArticleDetails.video_path) {
+      // Replace backslashes with forward slashes for URL compatibility
+      return `http://localhost:3001/${processedArticleDetails.video_path.replace(
+        /\\/g,
+        "/"
+      )}`;
+    }
     return null;
   };
 
-  // Cleanup for speech synthesis on component unmount (existing logic)
+  // Function to get the summary text for the active tab
+  const getActiveSummaryText = () => {
+    if (processedArticleDetails) {
+      if (activeTab === "english") return processedArticleDetails.summary;
+      if (activeTab === "hindi") return processedArticleDetails.trans_hindi;
+      if (activeTab === "marathi") return processedArticleDetails.trans_marathi;
+    }
+    return "";
+  };
+
+  // Function for text-to-speech
+  const speakSummary = (textToSpeak) => {
+    if (textToSpeak && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const msg = new SpeechSynthesisUtterance();
+      msg.text = textToSpeak;
+      window.speechSynthesis.speak(msg);
+      audioPlayedRef.current = true;
+    } else if (!textToSpeak) {
+      setMessage({
+        type: "warning",
+        text: "No text available to play in the current tab.",
+      });
+    } else {
+      setMessage({
+        type: "info",
+        text: "Text-to-speech not supported in this browser.",
+      });
+    }
+  };
+
+  const stopSummary = () => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      audioPlayedRef.current = false;
+    }
+  };
+
+  // Cleanup for speech synthesis on component unmount
   useEffect(() => {
     return () => {
       if ("speechSynthesis" in window) {
@@ -197,11 +220,7 @@ const News = ({ selectedCategory }) => {
     };
   }, []);
 
-  // Manual search trigger for the button, uses the memoized handleSearchNews
-  // This is effectively what the useEffect already does, but good to have for explicit button click
-  // if the useEffect for handleSearchNews were to be removed or changed.
-  // For now, the button click will call handleSearchNews, which is the same function
-  // the useEffect calls.
+  // Manual search trigger for the button
   const manualSearchTrigger = () => {
     handleSearchNews();
   };
@@ -220,14 +239,14 @@ const News = ({ selectedCategory }) => {
           className="search-input"
           placeholder="Enter news search query (e.g., 'artificial intelligence') or select a category"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)} // Updates searchQuery, which triggers the effect
+          onChange={(e) => setSearchQuery(e.target.value)}
           onKeyPress={(e) => {
-            if (e.key === "Enter") manualSearchTrigger(); // Use manualSearchTrigger or handleSearchNews
+            if (e.key === "Enter") manualSearchTrigger();
           }}
         />
         <button
           className="search-button"
-          onClick={manualSearchTrigger} // Use manualSearchTrigger or handleSearchNews
+          onClick={manualSearchTrigger}
           disabled={loading}
         >
           {loading && !selectedArticle
@@ -297,6 +316,7 @@ const News = ({ selectedCategory }) => {
             className="back-to-results-button"
             onClick={() => {
               setSelectedArticle(null);
+              setProcessedArticleDetails(null); // Clear processed details when going back
               setMessage({ type: "", text: "" }); /* Keep searchResults */
             }}
           >
@@ -328,11 +348,20 @@ const News = ({ selectedCategory }) => {
             <strong>Published:</strong>{" "}
             {new Date(selectedArticle.publishedAt).toLocaleDateString()}
           </p>
+          {/* Display Authors from processed data if available */}
+          {processedArticleDetails?.authors &&
+            processedArticleDetails.authors.length > 0 && (
+              <p>
+                <strong>Authors:</strong>{" "}
+                {processedArticleDetails.authors.join(", ")}
+              </p>
+            )}
           <p>
             <a
               href={selectedArticle.url}
               target="_blank"
               rel="noopener noreferrer"
+              className="read-full-article-link"
             >
               Read Full Article
             </a>
@@ -341,8 +370,9 @@ const News = ({ selectedCategory }) => {
           {/* Loading spinner for article processing */}
           {loading && <div className="loading-spinner"></div>}
 
-          {summary &&
-            !loading && ( // Only show tabs if summary exists and not loading
+          {processedArticleDetails &&
+            processedArticleDetails.summary &&
+            !loading && (
               <div className="summary-translation-video-section">
                 <div className="tabs">
                   <button
@@ -353,7 +383,7 @@ const News = ({ selectedCategory }) => {
                   >
                     English Summary
                   </button>
-                  {transHindi && (
+                  {processedArticleDetails.trans_hindi && (
                     <button
                       className={`tab-button ${
                         activeTab === "hindi" ? "active" : ""
@@ -363,7 +393,7 @@ const News = ({ selectedCategory }) => {
                       Hindi
                     </button>
                   )}
-                  {transMarathi && (
+                  {processedArticleDetails.trans_marathi && (
                     <button
                       className={`tab-button ${
                         activeTab === "marathi" ? "active" : ""
@@ -378,19 +408,38 @@ const News = ({ selectedCategory }) => {
                 <div className="tab-content">
                   {activeTab === "english" && (
                     <div className="summary-box success-box">
-                      <p>{summary}</p>
+                      <p>{processedArticleDetails.summary}</p>
                     </div>
                   )}
-                  {activeTab === "hindi" && transHindi && (
-                    <div className="translation-box info-box">
-                      <p>{transHindi}</p>
-                    </div>
-                  )}
-                  {activeTab === "marathi" && transMarathi && (
-                    <div className="translation-box info-box">
-                      <p>{transMarathi}</p>
-                    </div>
-                  )}
+                  {activeTab === "hindi" &&
+                    processedArticleDetails.trans_hindi && (
+                      <div className="translation-box info-box">
+                        <p>{processedArticleDetails.trans_hindi}</p>
+                      </div>
+                    )}
+                  {activeTab === "marathi" &&
+                    processedArticleDetails.trans_marathi && (
+                      <div className="translation-box info-box">
+                        <p>{processedArticleDetails.trans_marathi}</p>
+                      </div>
+                    )}
+
+                  {/* Audio Controls */}
+                  <div className="audio-controls-section">
+                    <h3 className="section-subheader-small">Audio Playback</h3>
+                    <button
+                      className="audio-button play-button"
+                      onClick={() => speakSummary(getActiveSummaryText())}
+                    >
+                      ▶️ Play Current Tab
+                    </button>
+                    <button
+                      className="audio-button stop-button"
+                      onClick={stopSummary}
+                    >
+                      ⏹️ Stop Audio
+                    </button>
+                  </div>
 
                   <h3 className="section-subheader-small">
                     Video Summary (
@@ -398,23 +447,33 @@ const News = ({ selectedCategory }) => {
                   </h3>
                   <div className="video-player-container">
                     {getActiveVideoUrl() ? (
-                      <video
-                        controls
-                        src={getActiveVideoUrl()}
-                        className="summary-video"
-                        key={getActiveVideoUrl()} // Add key to force re-render on src change
-                      >
-                        Your browser does not support the video tag.
-                      </video>
+                      <>
+                        {" "}
+                        {/* Use a fragment to group video and download button */}
+                        <video
+                          controls
+                          src={getActiveVideoUrl()}
+                          className="summary-video"
+                          key={getActiveVideoUrl()} // Add key to force re-render on src change
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                        <a
+                          href={getActiveVideoUrl()}
+                          download={`summary_video_${activeTab}.mp4`} // Suggested filename
+                          className="download-button" // Apply download-button class
+                        >
+                          ⬇️ Download Video
+                        </a>
+                      </>
                     ) : (
                       <div className="info-message">
                         Video not available for this language/article.
-                        {activeTab === "english" &&
-                          !summary &&
+                        {/* More specific messages based on processed data */}
+                        {!processedArticleDetails.summary &&
                           " (Requires summary)"}
-                        {activeTab === "english" &&
-                          summary &&
-                          !selectedArticle.image &&
+                        {processedArticleDetails.summary &&
+                          !processedArticleDetails.top_image &&
                           " (Requires article image)"}
                       </div>
                     )}
@@ -423,12 +482,14 @@ const News = ({ selectedCategory }) => {
               </div>
             )}
           {/* Message if summary processing failed but article is selected */}
-          {!summary && !loading && selectedArticle && (
-            <div className="info-message">
-              Summary processing might have failed or is unavailable for this
-              article.
-            </div>
-          )}
+          {(!processedArticleDetails || !processedArticleDetails.summary) &&
+            !loading &&
+            selectedArticle && (
+              <div className="info-message">
+                Summary processing might have failed or is unavailable for this
+                article.
+              </div>
+            )}
         </div>
       )}
 
@@ -443,9 +504,11 @@ const News = ({ selectedCategory }) => {
           <li>Hugging Face Transformers for summarization</li>
           <li>Newspaper3k for article content extraction</li>
           <li>Googletrans for translations</li>
-          <li>gTTS and MoviePy for video generation</li>
+          <li>gTTS and ffmpeg-python for video generation</li>{" "}
+          {/* Updated text */}
           <li>
-            Web Speech API for audio playback (removed client-side buttons)
+            Web Speech API for audio playback (Play/Stop buttons are
+            client-side) {/* Updated text */}
           </li>
         </ul>
         <p className="note-warning">
