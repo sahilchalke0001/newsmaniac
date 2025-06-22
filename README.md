@@ -2,6 +2,12 @@
 
 This application provides a robust solution for searching, summarizing, translating, and generating multimedia content (video and image posts) from news articles. It features a React-based frontend for user interaction and a Node.js backend that orchestrates various Python-based NLP and media processing tasks.
 
+##  Demonstration
+![Demonstration](https://github.com/user-attachments/assets/c7fc0e46-cc3b-4dea-acb2-e41fdfe2322c)
+
+https://github.com/user-attachments/assets/919379e1-c888-4a65-badf-6b3719fa2997
+
+
 ## Table of Contents
 
 - Features
