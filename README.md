@@ -2,7 +2,10 @@
 
 This application provides a robust solution for searching, summarizing, translating, and generating multimedia content (video and image posts) from news articles. It features a React-based frontend for user interaction and a Node.js backend that orchestrates various Python-based NLP and media processing tasks.
 
-##  Demonstration
+The model sshleifer/distilbart-cnn-6-6 is a distilled version of Facebook’s BART model, specifically fine-tuned for abstractive summarization using the CNN/DailyMail dataset.
+
+## Demonstration
+
 ![Demonstration](https://github.com/user-attachments/assets/c7fc0e46-cc3b-4dea-acb2-e41fdfe2322c)
 
 https://github.com/user-attachments/assets/919379e1-c888-4a65-badf-6b3719fa2997
@@ -11,11 +14,12 @@ https://github.com/user-attachments/assets/919379e1-c888-4a65-badf-6b3719fa2997
 
 https://github.com/user-attachments/assets/57328545-3da6-4b25-ac21-511228e5e9ef
 
-
 ## News artice summerization from api
+
 https://github.com/user-attachments/assets/bc1e0ff8-b634-4bc6-9368-460b5ae41565
 
 ## Translation in Hindi and Marathi
+
 ![Screenshot 2025-06-22 230005](https://github.com/user-attachments/assets/da6e839d-d3d4-4cf7-bdd3-72d23b95df02)
 
 ![Screenshot 2025-06-22 230037](https://github.com/user-attachments/assets/a12d7ddd-e271-4bb0-ad3b-b1e0a60bfb9d)
@@ -100,11 +104,15 @@ npm install
 # or
 yarn install
 ```
+
 #### Adding Api Key
+
 ```bash
 NEWS_API_KEY=#add your news api key from news api here
 ```
+
 make a .env file in backend folder and the key
+
 #### Python Environment Setup (Conda)
 
 ```bash
