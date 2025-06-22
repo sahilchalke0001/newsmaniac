@@ -7,6 +7,10 @@ This application provides a robust solution for searching, summarizing, translat
 
 https://github.com/user-attachments/assets/919379e1-c888-4a65-badf-6b3719fa2997
 
+## News Url summerization
+
+https://github.com/user-attachments/assets/57328545-3da6-4b25-ac21-511228e5e9ef
+
 
 ## Table of Contents
 
@@ -36,6 +40,7 @@ https://github.com/user-attachments/assets/919379e1-c888-4a65-badf-6b3719fa2997
 ### Frontend:
 
 - React
+
 - CSS (Responsive Design)
 
 ### Backend:
