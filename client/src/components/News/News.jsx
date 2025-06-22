@@ -87,10 +87,96 @@ const News = ({ selectedCategory }) => {
     }
   }, [searchQuery]); // Dependencies for useCallback: searchQuery. State setters are stable.
 
-  // New function to handle direct URL summarization
+  // Function to handle processing of a given article URL (used by both direct URL input and search results)
+  const processArticleAndGenerateContent = useCallback(
+    async (articleUrl, articleData = null) => {
+      setLoading(true);
+      setProcessedArticleDetails(null); // Clear previous processed data
+      setMessage({ type: "", text: "" });
+      setActiveTab("english");
+
+      try {
+        const response = await fetch("http://localhost:3001/process_article", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: articleUrl }),
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          let errorMessage = `HTTP error! Status: ${response.status}`;
+          try {
+            const errorData = JSON.parse(errorBody);
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            errorMessage = errorBody || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        setProcessedArticleDetails(data); // Store the entire processed data
+
+        if (data.error) {
+          setMessage({
+            type: "error",
+            text: `Backend processing error: ${data.error}`,
+          });
+          setProcessedArticleDetails(null); // Clear processed data on backend error
+        } else if (!data.summary) {
+          setMessage({
+            type: "warning",
+            text: "Could not generate summary for this URL. Content might be insufficient or malformed.",
+          });
+        } else if (!data.video_path) {
+          setMessage({
+            type: "info",
+            text: "Article summarized, but video generation failed or no image/summary available for video.",
+          });
+        } else {
+          setMessage({
+            type: "success",
+            text: "Article processed successfully and video generated!",
+          });
+        }
+
+        // Set the selected article for display. Use provided articleData if available, otherwise construct from processed data.
+        if (data.summary) {
+          // Only set selected article if summary was successful
+          setSelectedArticle(
+            articleData || {
+              title: data.title || "Summarized Article",
+              url: articleUrl,
+              image: data.top_image,
+              source: data.source_name || "Direct URL", // Use source from backend if available
+              publishedAt: data.publish_date || new Date().toISOString(),
+            }
+          );
+        } else {
+          setSelectedArticle(null); // Clear selected article if summary failed
+        }
+      } catch (error) {
+        console.error("Error processing URL:", error);
+        setMessage({
+          type: "error",
+          text: `Processing error: ${error.message}`,
+        });
+        setSelectedArticle(null); // Clear selected article on processing error
+        setProcessedArticleDetails(null); // Clear processed data on processing error
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  ); // Dependencies for useCallback: None, as it uses arguments.
+
+  // New function to handle direct URL summarization (calls the generalized processing function)
   const handleSummarizeUrl = useCallback(async () => {
     if (!urlInput) {
       setMessage({ type: "info", text: "Please enter a URL to summarize." });
+      setSearchResults([]); // Clear search results when doing a direct URL summary
       setSelectedArticle(null);
       setProcessedArticleDetails(null);
       return;
@@ -106,96 +192,35 @@ const News = ({ selectedCategory }) => {
       });
       return;
     }
+    setSearchQuery(""); // Clear search query when processing a URL
+    setSearchResults([]); // Ensure search results are cleared for URL processing
+    await processArticleAndGenerateContent(urlInput);
+  }, [urlInput, processArticleAndGenerateContent]);
 
-    setLoading(true);
-    setSearchResults([]); // Clear search results when summarizing a URL
-    setSelectedArticle(null); // Clear previous selected article
-    setProcessedArticleDetails(null); // Clear previous processed data
-    setMessage({ type: "", text: "" });
-    setActiveTab("english");
-    setSearchQuery(""); // Clear search query when summarizing a URL
+  // Function to handle selecting an article from search results and triggering its processing
+  const handleSelectArticleAndSummarize = useCallback(
+    async (article) => {
+      setSelectedArticle(article); // Immediately set the selected article to show in UI
+      setSearchResults([]); // Clear search results display
+      setSearchQuery(""); // Clear search query when an article is selected from results
+      setUrlInput(""); // Clear URL input when an article is selected from results
 
-    try {
-      const response = await fetch("http://localhost:3001/process_article", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: urlInput }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        let errorMessage = `HTTP error! Status: ${response.status}`;
-        try {
-          const errorData = JSON.parse(errorBody);
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = errorBody || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      setProcessedArticleDetails(data); // Store the entire processed data
-
-      if (data.error) {
-        setMessage({
-          type: "error",
-          text: `Backend processing error: ${data.error}`,
-        });
-        setProcessedArticleDetails(null); // Clear processed data on backend error
-      } else if (!data.summary) {
-        setMessage({
-          type: "warning",
-          text: "Could not generate summary for this URL. Content might be insufficient or malformed.",
-        });
-      } else if (!data.video_path) {
-        // Check for video_path directly from the backend response
-        setMessage({
-          type: "info",
-          text: "Article summarized, but video generation failed or no image/summary available for video.",
-        });
-      } else {
-        setMessage({
-          type: "success",
-          text: "Article processed successfully and video generated!",
-        });
-      }
-
-      // Set a dummy selected article for display purposes if successful
-      if (data.summary) {
-        setSelectedArticle({
-          title: data.title || "Summarized Article", // Use title from backend or a default
-          url: urlInput,
-          image: data.top_image,
-          source: "Direct URL",
-          publishedAt: data.publish_date || new Date().toISOString(),
-        });
-      }
-    } catch (error) {
-      console.error("Error processing URL:", error);
-      setMessage({ type: "error", text: `Processing error: ${error.message}` });
-      setSelectedArticle(null); // Clear selected article on processing error
-      setProcessedArticleDetails(null); // Clear processed data on processing error
-    } finally {
-      setLoading(false);
-    }
-  }, [urlInput]); // Dependency for useCallback: urlInput
+      await processArticleAndGenerateContent(article.url, article);
+    },
+    [processArticleAndGenerateContent]
+  );
 
   // Effect to trigger search when searchQuery changes (either from typing or category selection)
   useEffect(() => {
     if (searchQuery && !urlInput) {
       // Only search if searchQuery is present and no URL input
       handleSearchNews();
-    } else if (!searchQuery && !urlInput) {
-      // If both are cleared, clear results and selected article
+    } else if (!searchQuery && !urlInput && !selectedArticle) {
+      // Only clear if nothing is selected/searched
       setSearchResults([]);
-      setSelectedArticle(null);
-      setProcessedArticleDetails(null);
       setMessage({ type: "", text: "" });
     }
-  }, [searchQuery, handleSearchNews, urlInput]); // Depend on searchQuery, urlInput, and the memoized handleSearchNews
+  }, [searchQuery, handleSearchNews, urlInput, selectedArticle]); // Depend on searchQuery, urlInput, selectedArticle, and the memoized handleSearchNews
 
   // Function to get the URL for the video, ensuring correct path format
   const getActiveVideoUrl = () => {
@@ -377,7 +402,15 @@ const News = ({ selectedCategory }) => {
             onClick={() => {
               setSelectedArticle(null);
               setProcessedArticleDetails(null); // Clear processed details when going back
-              setMessage({ type: "", text: "" }); /* Keep searchResults */
+              setMessage({ type: "", text: "" });
+              // Decide whether to show search results or clear them based on previous action
+              // If we came from a search, keep searchResults, otherwise clear.
+              if (!urlInput && searchQuery) {
+                // Check if previous action was a search
+                // No need to set searchResults here, as it's already set if we came from a search
+              } else {
+                setSearchResults([]); // Clear if we came from direct URL or a fresh start
+              }
               setSearchQuery(""); // Clear search query when going back
               setUrlInput(""); // Clear URL input when going back
             }}

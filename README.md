@@ -1,0 +1,139 @@
+# News Article Summarizer and Translator
+
+This application provides a robust solution for searching, summarizing, translating, and generating multimedia content (video and image posts) from news articles. It features a React-based frontend for user interaction and a Node.js backend that orchestrates various Python-based NLP and media processing tasks.
+
+## Table of Contents
+
+- Features
+- Technologies Used
+- Prerequisites
+- Setup and Installation
+  - Cloning the Repository
+  - Backend Setup (Node.js & Python)
+  - Frontend Setup (React)
+- Usage
+- Troubleshooting
+- License
+
+## Features
+
+- News Article Search: Search for articles using keywords (via News API).
+- Direct URL Processing: Input a URL to extract and summarize its content.
+- Article Summarization: Leverages Hugging Face Transformers for concise summaries.
+- Multi-language Translation: Translates summaries to Hindi and Marathi.
+- Video Generation: Creates narrated video summaries with text overlays.
+- Shareable Image Posts: Generates summary-based social media images.
+- Text-to-Speech (TTS): Audio playback of summaries in supported languages.
+
+## Technologies Used
+
+### Frontend:
+
+- React
+- CSS (Responsive Design)
+
+### Backend:
+
+- Node.js (Express)
+- Python (NLP and Media Processing)
+
+### Libraries:
+
+- newspaper3k, transformers, torch, gTTS, pydub, Pillow, ffmpeg-python, googletrans, opencv-python, nltk, scipy, etc.
+
+### External Tools & APIs:
+
+- News API – for fetching news.
+- FFmpeg – required for audio/video generation.
+
+## Prerequisites
+
+Ensure the following are installed:
+
+- Git
+- Node.js & npm (or Yarn)
+- Python 3.8+
+- Conda (Anaconda/Miniconda recommended)
+- FFmpeg
+
+### FFmpeg Installation:
+
+- Windows: Download from https://ffmpeg.org/download.html, extract and add `bin` to system PATH.
+- macOS: `brew install ffmpeg`
+- Linux: `sudo apt update && sudo apt install ffmpeg`
+
+## Setup and Installation
+
+### Cloning the Repository
+
+```bash
+git clone <repository_url>
+cd <repository_name>
+```
+
+### Backend Setup (Node.js & Python)
+
+```bash
+cd backend
+npm install
+# or
+yarn install
+```
+
+#### Python Environment Setup (Conda)
+
+```bash
+conda create -n venv_nlp python=3.9
+conda activate venv_nlp
+pip install -r requirements.txt
+```
+
+Ensure your `requirements.txt` includes necessary libraries.
+
+#### FFmpeg Path Setup
+
+Update the path in `backend/nlp_service.py`:
+
+```python
+FFMPEG_BIN_PATH = r"C:\path\to\ffmpeg\bin"
+# or
+FFMPEG_BIN_PATH = "/usr/local/bin"
+```
+
+#### Start Backend
+
+```bash
+node server.js
+```
+
+### Frontend Setup (React)
+
+```bash
+cd ../frontend
+npm install
+# or
+yarn install
+npm start
+```
+
+## Usage
+
+- Search news by keywords.
+- Paste article URL to summarize directly.
+- View summaries, translations, videos, and image posts.
+- Listen to TTS audio and download media.
+
+## Troubleshooting
+
+| Issue                                            | Solution                             |
+| ------------------------------------------------ | ------------------------------------ |
+| `handleSelectArticleAndSummarize is not defined` | Ensure it's defined in News.jsx      |
+| FFmpeg not found                                 | Check `FFMPEG_BIN_PATH`              |
+| No Audio in Video                                | Check gTTS, pydub, and FFmpeg        |
+| Failed to fetch news                             | Verify `NEWS_API_KEY`                |
+| Python Errors                                    | Check backend logs                   |
+| CORS Errors                                      | Ensure CORS is configured in Express |
+
+## License
+
+This project is open-source and available under the MIT License.
