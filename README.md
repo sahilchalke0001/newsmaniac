@@ -12,6 +12,10 @@ https://github.com/user-attachments/assets/919379e1-c888-4a65-badf-6b3719fa2997
 https://github.com/user-attachments/assets/57328545-3da6-4b25-ac21-511228e5e9ef
 
 
+## News artice summerization from api
+https://github.com/user-attachments/assets/bc1e0ff8-b634-4bc6-9368-460b5ae41565
+
+
 ## Table of Contents
 
 - Features
