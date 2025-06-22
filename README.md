@@ -100,7 +100,11 @@ npm install
 # or
 yarn install
 ```
-
+#### Adding Api Key
+```bash
+NEWS_API_KEY=#add you news api key from news api here
+```
+make a .env file in backend folder and the key
 #### Python Environment Setup (Conda)
 
 ```bash
