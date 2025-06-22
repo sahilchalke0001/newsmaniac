@@ -15,6 +15,12 @@ https://github.com/user-attachments/assets/57328545-3da6-4b25-ac21-511228e5e9ef
 ## News artice summerization from api
 https://github.com/user-attachments/assets/bc1e0ff8-b634-4bc6-9368-460b5ae41565
 
+## Translation in Hindi and Marathi
+![Screenshot 2025-06-22 230005](https://github.com/user-attachments/assets/da6e839d-d3d4-4cf7-bdd3-72d23b95df02)
+
+![Screenshot 2025-06-22 230037](https://github.com/user-attachments/assets/a12d7ddd-e271-4bb0-ad3b-b1e0a60bfb9d)
+
+![Screenshot 2025-06-22 230103](https://github.com/user-attachments/assets/62141eff-132c-4ab3-9c24-fe3de2fb2d46)
 
 ## Table of Contents
 
