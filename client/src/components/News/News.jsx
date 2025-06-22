@@ -17,10 +17,13 @@ const News = ({ selectedCategory }) => {
   const audioPlayedRef = useRef(false);
 
   // Effect to update searchQuery state when selectedCategory prop changes
+  // This effect should only handle category selection, not general typing.
   useEffect(() => {
     if (selectedCategory) {
       setSearchQuery(selectedCategory);
       setUrlInput(""); // Clear URL input when category is selected
+      // Immediately trigger search when a category is selected
+      handleSearchNews(selectedCategory);
     } else {
       // If selectedCategory is cleared, also clear search results and selected article
       setSearchQuery(""); // Clear the search bar
@@ -29,63 +32,69 @@ const News = ({ selectedCategory }) => {
       setProcessedArticleDetails(null);
       setMessage({ type: "", text: "" });
     }
-  }, [selectedCategory]);
+  }, [selectedCategory]); // Now only depends on selectedCategory
 
   // Memoized function to handle the news search API call
-  const handleSearchNews = useCallback(async () => {
-    if (!searchQuery) {
-      setMessage({
-        type: "info",
-        text: "Enter a query or select a category to search.",
-      });
-      setSearchResults([]);
-      setSelectedArticle(null);
-      setProcessedArticleDetails(null);
-      return;
-    }
+  // This function will now be explicitly called by button clicks or Enter key presses.
+  const handleSearchNews = useCallback(
+    async (queryOverride = null) => {
+      const queryToUse = queryOverride || searchQuery; // Use override if provided, otherwise current state
 
-    setLoading(true);
-    setSearchResults([]);
-    setSelectedArticle(null);
-    setProcessedArticleDetails(null); // Clear processed details on new search
-    setMessage({ type: "", text: "" });
-    setActiveTab("english");
-    setUrlInput(""); // Clear URL input when performing a search
-
-    try {
-      const response = await fetch("http://localhost:3001/search_news", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ query: searchQuery }), // Uses the current searchQuery state
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to search news.");
-      }
-
-      const data = await response.json();
-      if (data.articles.length === 0) {
+      if (!queryToUse) {
         setMessage({
           type: "info",
-          text: "No articles found for your query. Try a different one.",
+          text: "Enter a query or select a category to search.",
         });
-      } else {
-        setSearchResults(data.articles);
-        setMessage({
-          type: "success",
-          text: `Found ${data.articles.length} articles. Click on an article to summarize and generate video.`,
-        });
+        setSearchResults([]);
+        setSelectedArticle(null);
+        setProcessedArticleDetails(null);
+        return;
       }
-    } catch (error) {
-      console.error("Error searching news:", error);
-      setMessage({ type: "error", text: `Search error: ${error.message}` });
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery]); // Dependencies for useCallback: searchQuery. State setters are stable.
+
+      setLoading(true);
+      setSearchResults([]);
+      setSelectedArticle(null);
+      setProcessedArticleDetails(null); // Clear processed details on new search
+      setMessage({ type: "", text: "" });
+      setActiveTab("english");
+      setUrlInput(""); // Clear URL input when performing a search
+
+      try {
+        const response = await fetch("http://localhost:3001/search_news", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: queryToUse }), // Uses the current searchQuery state
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to search news.");
+        }
+
+        const data = await response.json();
+        if (data.articles.length === 0) {
+          setMessage({
+            type: "info",
+            text: "No articles found for your query. Try a different one.",
+          });
+        } else {
+          setSearchResults(data.articles);
+          setMessage({
+            type: "success",
+            text: `Found ${data.articles.length} articles. Click on an article to summarize and generate video.`,
+          });
+        }
+      } catch (error) {
+        console.error("Error searching news:", error);
+        setMessage({ type: "error", text: `Search error: ${error.message}` });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [searchQuery]
+  ); // Dependency: searchQuery for when it's directly from input field
 
   // Function to handle processing of a given article URL (used by both direct URL input and search results)
   const processArticleAndGenerateContent = useCallback(
@@ -210,17 +219,13 @@ const News = ({ selectedCategory }) => {
     [processArticleAndGenerateContent]
   );
 
-  // Effect to trigger search when searchQuery changes (either from typing or category selection)
+  // General cleanup effect for clearing results when inputs are empty and nothing is selected
   useEffect(() => {
-    if (searchQuery && !urlInput) {
-      // Only search if searchQuery is present and no URL input
-      handleSearchNews();
-    } else if (!searchQuery && !urlInput && !selectedArticle) {
-      // Only clear if nothing is selected/searched
+    if (!searchQuery && !urlInput && !selectedArticle) {
       setSearchResults([]);
       setMessage({ type: "", text: "" });
     }
-  }, [searchQuery, handleSearchNews, urlInput, selectedArticle]); // Depend on searchQuery, urlInput, selectedArticle, and the memoized handleSearchNews
+  }, [searchQuery, urlInput, selectedArticle]);
 
   // Function to get the URL for the video, ensuring correct path format
   const getActiveVideoUrl = () => {
@@ -313,7 +318,7 @@ const News = ({ selectedCategory }) => {
         />
         <button
           className="search-button"
-          onClick={handleSearchNews}
+          onClick={() => handleSearchNews()} // Explicitly call with current searchQuery state
           disabled={loading}
         >
           {loading && !selectedArticle && searchQuery
@@ -589,7 +594,6 @@ const News = ({ selectedCategory }) => {
                         href={getPostImageUrl()}
                         target="_blank" // Open in new tab
                         rel="noopener noreferrer" // Security best practice
-                        // Removed 'download' attribute to prevent direct download
                         className="download-button" // Reusing button style
                       >
                         Open Image Post

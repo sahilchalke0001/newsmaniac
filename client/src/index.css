@@ -29,13 +29,6 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow */
 }
 
-.content-title {
-  font-size: 1.5rem; /* Equivalent to text-2xl */
-  font-weight: 600; /* Equivalent to font-semibold */
-  color: #1f2937; /* Equivalent to text-gray-800 */
-  margin-bottom: 1rem; /* Equivalent to mb-4 */
-}
-
 .content-text {
   color: #4b5563; /* Equivalent to text-gray-600 */
 }

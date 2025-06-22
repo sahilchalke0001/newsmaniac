@@ -8,8 +8,9 @@ const path = require("path"); // Import the 'path' module
 const app = express();
 const PORT = 3001; // Node.js backend will run on port 3001
 
+require("dotenv").config();
 // --- News API Configuration ---
-const NEWS_API_KEY = "8a1a97d2a3a4431fac26c9ba27ca277c"; // YOUR NEWS API KEY
+const NEWS_API_KEY = process.env.NEWS_API_KEY;
 const NEWS_API_URL = "https://newsapi.org/v2/everything";
 
 app.use(cors()); // Enable CORS for all origins

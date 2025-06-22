@@ -25,7 +25,6 @@ function App() {
           {/* You can remove this welcome message or keep it */}
           {!currentCategory && ( // Only show welcome if no category is selected yet
             <>
-              <h2 className="content-title">Welcome to NewsManiac!</h2>
               <p className="content-text">
                 This site helps you summarize news articles and create engaging
                 posts and reels for social media.
