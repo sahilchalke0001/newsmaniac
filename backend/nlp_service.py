@@ -33,7 +33,7 @@ except nltk.downloader.DownloadError:
 
 # Set path to FFmpeg and FFprobe executables
 # IMPORTANT: REPLACE THIS WITH THE ACTUAL PATH TO YOUR FFmpeg/bin FOLDER
-# Example: FFMPEG_BIN_PATH = r"C:\ffmpeg\bin"
+# Example: 'C:\\ffmpeg\\bin'
 FFMPEG_BIN_PATH = r"C:\ffmpeg-master-latest-win64-gpl-shared\bin" # <--- **DOUBLE-CHECK AND UPDATE THIS PATH**
 
 # Set the PATH environment variable for this Python process
@@ -155,8 +155,10 @@ def resize_and_pad_image(image_pil, target_width, target_height):
 
     return padded_image
 
-def add_text_to_image_with_background(image_pil, text_to_display, font_size, text_color, background_color, max_width_chars, line_spacing_factor=1.0):
-    draw = ImageDraw.Draw(image_pil)
+def add_text_to_image_with_background(image_pil, text_to_display, font_size, text_color, background_color, max_width_chars, line_spacing_factor=1.0, outline_color=(0,0,0), outline_width=2):
+    # Convert image to RGBA for transparent background drawing
+    image_pil_rgba = image_pil.convert("RGBA")
+    draw = ImageDraw.Draw(image_pil_rgba)
     font_path = get_font_path("arial.ttf")
 
     try:
@@ -170,58 +172,61 @@ def add_text_to_image_with_background(image_pil, text_to_display, font_size, tex
 
     lines = split_text_into_lines(text_to_display, max_width_chars)
 
-    # Calculate total text height and bounding box for centering
     total_text_height = 0
     line_heights = []
-    # Calculate line heights and total text height
     for line in lines:
-        # textbbox returns (left, top, right, bottom)
-        # Use textbbox to get accurate height, including ascenders/descenders
         bbox = draw.textbbox((0, 0), line, font=font)
         line_height = bbox[3] - bbox[1]
         line_heights.append(line_height)
         total_text_height += line_height
 
-    # Calculate total height including spacing
     total_height_with_spacing = total_text_height + (len(lines) - 1) * (font_size * (line_spacing_factor - 1))
 
-    # Calculate initial y for vertical centering
-    y_start_text = (image_pil.height - total_height_with_spacing) // 2
-
+    y_start_text = (image_pil_rgba.height - total_height_with_spacing) // 2
     current_y = y_start_text
-    text_padding = 15 # Increased padding around text for the background rectangle
+    text_padding = 20 # Increased padding for aesthetics
 
-    # Determine the widest line for background rectangle width
     max_line_width = 0
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font)
         max_line_width = max(max_line_width, bbox[2] - bbox[0])
 
-    # Draw background rectangle for the entire block of text
-    bg_rect_x1 = (image_pil.width - max_line_width) // 2 - text_padding
+    # Draw semi-transparent background rectangle
+    bg_rect_x1 = (image_pil_rgba.width - max_line_width) // 2 - text_padding
     bg_rect_y1 = y_start_text - text_padding
-    bg_rect_x2 = (image_pil.width + max_line_width) // 2 + text_padding
+    bg_rect_x2 = (image_pil_rgba.width + max_line_width) // 2 + text_padding
     bg_rect_y2 = y_start_text + total_height_with_spacing + text_padding
     
-    # Ensure background rectangle is within image bounds
     bg_rect_x1 = max(0, bg_rect_x1)
     bg_rect_y1 = max(0, bg_rect_y1)
-    bg_rect_x2 = min(image_pil.width, bg_rect_x2)
-    bg_rect_y2 = min(image_pil.height, bg_rect_y2)
+    bg_rect_x2 = min(image_pil_rgba.width, bg_rect_x2)
+    bg_rect_y2 = min(image_pil_rgba.height, bg_rect_y2)
 
+    # Use background_color with alpha for transparency
     draw.rectangle([bg_rect_x1, bg_rect_y1, bg_rect_x2, bg_rect_y2], fill=background_color)
 
-    # Draw text line by line
+    # Draw text line by line with outline
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
         line_width = bbox[2] - bbox[0]
-        x_text = (image_pil.width - line_width) // 2
-        draw.text((x_text, current_y), line, font=font, fill=text_color)
-        current_y += line_heights[i] + (font_size * (line_spacing_factor - 1)) # Add spacing based on factor
-    return image_pil
+        x_text = (image_pil_rgba.width - line_width) // 2
 
-def add_text_to_image_bottom_with_background(image_pil, text_to_display, font_size, text_color, background_color, max_width_chars, line_spacing_factor=1.0, bottom_margin=20):
-    draw = ImageDraw.Draw(image_pil)
+        # Draw outline (draw text multiple times slightly offset)
+        for x_offset in range(-outline_width, outline_width + 1):
+            for y_offset in range(-outline_width, outline_width + 1):
+                if x_offset != 0 or y_offset != 0: # Avoid drawing directly on top
+                    draw.text((x_text + x_offset, current_y + y_offset), line, font=font, fill=outline_color)
+        
+        # Draw main text
+        draw.text((x_text, current_y), line, font=font, fill=text_color)
+        current_y += line_heights[i] + (font_size * (line_spacing_factor - 1))
+    
+    return image_pil_rgba.convert("RGB") # Convert back to RGB if original was RGB
+
+def add_text_to_image_bottom_with_background(image_pil, text_to_display, font_size, text_color, background_color, max_width_chars, line_spacing_factor=1.0, bottom_margin=20, outline_color=(0,0,0), outline_width=2):
+    # Convert image to RGBA for transparent background drawing
+    image_pil_rgba = image_pil.convert("RGBA")
+    draw = ImageDraw.Draw(image_pil_rgba)
     font_path = get_font_path("arial.ttf")
 
     try:
@@ -235,7 +240,6 @@ def add_text_to_image_bottom_with_background(image_pil, text_to_display, font_si
 
     lines = split_text_into_lines(text_to_display, max_width_chars)
 
-    # Calculate total text height and bounding box for positioning
     total_text_height = 0
     line_heights = []
     for line in lines:
@@ -246,39 +250,45 @@ def add_text_to_image_bottom_with_background(image_pil, text_to_display, font_si
 
     total_height_with_spacing = total_text_height + (len(lines) - 1) * (font_size * (line_spacing_factor - 1))
 
-    # Calculate initial y for bottom alignment
-    y_start_text = image_pil.height - total_height_with_spacing - bottom_margin
-
+    y_start_text = image_pil_rgba.height - total_height_with_spacing - bottom_margin
     current_y = y_start_text
-    text_padding = 15
+    text_padding = 20 # Increased padding
 
     max_line_width = 0
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font)
         max_line_width = max(max_line_width, bbox[2] - bbox[0])
 
-    # Draw background rectangle for the entire block of text
-    bg_rect_x1 = (image_pil.width - max_line_width) // 2 - text_padding
+    # Draw semi-transparent background rectangle
+    bg_rect_x1 = (image_pil_rgba.width - max_line_width) // 2 - text_padding
     bg_rect_y1 = y_start_text - text_padding
-    bg_rect_x2 = (image_pil.width + max_line_width) // 2 + text_padding
-    bg_rect_y2 = image_pil.height - bottom_margin + text_padding # Extend to bottom margin
+    bg_rect_x2 = (image_pil_rgba.width + max_line_width) // 2 + text_padding
+    bg_rect_y2 = image_pil_rgba.height - bottom_margin + text_padding
 
-    # Ensure background rectangle is within image bounds
     bg_rect_x1 = max(0, bg_rect_x1)
     bg_rect_y1 = max(0, bg_rect_y1)
-    bg_rect_x2 = min(image_pil.width, bg_rect_x2)
-    bg_rect_y2 = min(image_pil.height, bg_rect_y2)
+    bg_rect_x2 = min(image_pil_rgba.width, bg_rect_x2)
+    bg_rect_y2 = min(image_pil_rgba.height, bg_rect_y2)
 
     draw.rectangle([bg_rect_x1, bg_rect_y1, bg_rect_x2, bg_rect_y2], fill=background_color)
 
-    # Draw text line by line
+    # Draw text line by line with outline
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
         line_width = bbox[2] - bbox[0]
-        x_text = (image_pil.width - line_width) // 2
+        x_text = (image_pil_rgba.width - line_width) // 2
+
+        # Draw outline
+        for x_offset in range(-outline_width, outline_width + 1):
+            for y_offset in range(-outline_width, outline_width + 1):
+                if x_offset != 0 or y_offset != 0:
+                    draw.text((x_text + x_offset, current_y + y_offset), line, font=font, fill=outline_color)
+        
+        # Draw main text
         draw.text((x_text, current_y), line, font=font, fill=text_color)
         current_y += line_heights[i] + (font_size * (line_spacing_factor - 1))
-    return image_pil
+    
+    return image_pil_rgba.convert("RGB") # Convert back to RGB if original was RGB
 
 
 def generate_video_from_summary(summary, image_url, output_dir, output_filename="summary_video.mp4"):
@@ -289,20 +299,24 @@ def generate_video_from_summary(summary, image_url, output_dir, output_filename=
             return None
 
         # 1. Generate TTS Audio
+        sys.stderr.write("Generating audio from summary...\n")
         temp_audio_path = generate_tts_audio(summary, tempfile.gettempdir())
         if not temp_audio_path:
             sys.stderr.write("Error: Audio generation failed for video (TTS creation problem).\n")
             return None
         temp_files.append(temp_audio_path)
+        sys.stderr.write(f"DEBUG: Temporary audio file generated at: {temp_audio_path}\n")
 
         audio_segment = AudioSegment.from_file(temp_audio_path)
         audio_duration = audio_segment.duration_seconds
+        sys.stderr.write(f"DEBUG: Audio duration: {audio_duration} seconds\n")
 
         # 2. Download and process base image
         try:
             img_response = requests.get(image_url, stream=True)
             img_response.raise_for_status()
             base_img_pil = Image.open(io.BytesIO(img_response.content)).convert("RGB")
+            sys.stderr.write(f"DEBUG: Base image downloaded from {image_url}\n")
         except requests.exceptions.RequestException as e:
             sys.stderr.write(f"Error downloading image from {image_url}: {e}\n")
             return None
@@ -313,19 +327,24 @@ def generate_video_from_summary(summary, image_url, output_dir, output_filename=
         target_width = 1280
         target_height = 720
         base_img_pil = resize_and_pad_image(base_img_pil, target_width, target_height)
+        sys.stderr.write(f"DEBUG: Base image resized to {target_width}x{target_height}\n")
+
+        # Apply a subtle blur to the background image for better text readability
+        # Blur radius can be adjusted (e.g., 5-10 for a noticeable but not excessive blur)
+        base_img_pil = base_img_pil.filter(ImageFilter.GaussianBlur(radius=8))
+        sys.stderr.write("DEBUG: Applied Gaussian blur to base image.\n")
 
         # 3. Prepare for progressive text rendering
         words = summary.split()
         num_words = len(words)
         fps = 30 # Frames per second
         total_frames = math.ceil(audio_duration * fps)
-        
+        sys.stderr.write(f"DEBUG: Total words: {num_words}, Total frames: {total_frames}\n")
+
         # Calculate average duration per word more precisely
-        # Distribute words evenly over the audio duration
         word_display_times = []
         if num_words > 0:
             for i in range(num_words):
-                # Time at which this word should appear
                 word_time = (audio_duration / num_words) * i
                 word_display_times.append(word_time)
         
@@ -334,46 +353,45 @@ def generate_video_from_summary(summary, image_url, output_dir, output_filename=
         for i in range(total_frames):
             current_time = i / fps
             
-            # Determine how many words to show based on current time
             words_to_show_count = 0
             for j, display_time in enumerate(word_display_times):
                 if current_time >= display_time:
                     words_to_show_count = j + 1
                 else:
-                    break # Stop when current_time is less than display_time
+                    break
             
             current_text_to_display = " ".join(words[:words_to_show_count])
 
-            # Create a fresh copy of the base image for each frame
             frame_img = base_img_pil.copy()
 
-            # Add text with background to the current frame
-            # Adjusted font size, text color, background color, and line spacing factor
-            add_text_to_image_with_background(
+            # Add text with semi-transparent background and outline
+            frame_img = add_text_to_image_with_background(
                 frame_img,
                 current_text_to_display,
-                font_size=45,  # Medium-small font size
-                text_color=(0, 0, 0),  # Black text
-                background_color=(255, 255, 255), # White background
-                max_width_chars=50, # Adjusted for medium-small font
-                line_spacing_factor=1.0 # No extra space between lines (1.0 means font_size + 0)
+                font_size=45,
+                text_color=(255, 255, 255),  # White text
+                background_color=(0, 0, 0, 150), # Semi-transparent black background (RGBA)
+                max_width_chars=50,
+                line_spacing_factor=1.0,
+                outline_color=(0,0,0), # Black outline
+                outline_width=2
             )
 
-            # Save frame to a temporary file
             frame_filename = os.path.join(tempfile.gettempdir(), f"frame_{i:05d}.png")
             frame_img.save(frame_filename)
             frame_paths.append(frame_filename)
-            temp_files.append(frame_filename) # Add to cleanup list
+            temp_files.append(frame_filename)
+        sys.stderr.write(f"DEBUG: All {total_frames} frames generated.\n")
 
         # 4. Combine frames and audio using ffmpeg-python
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         final_video_relative_path = os.path.join('uploads', output_filename)
         final_video_full_path = os.path.join(output_dir, output_filename)
+        sys.stderr.write(f"DEBUG: Attempting to combine frames and audio into {final_video_full_path}\n")
+        sys.stderr.write(f"DEBUG: Input frames path: {tempfile.gettempdir()}/frame_%05d.png\n")
+        sys.stderr.write(f"DEBUG: Input audio path: {temp_audio_path}\n")
 
-        # Input video stream from image sequence
-        # Use -framerate to specify input frame rate, then -i for sequence
-        # Pipe the list of image paths to ffmpeg
         input_frames = ffmpeg.input(f'{tempfile.gettempdir()}/frame_%05d.png', framerate=fps)
         audio_stream = ffmpeg.input(temp_audio_path)
 
@@ -386,7 +404,7 @@ def generate_video_from_summary(summary, image_url, output_dir, output_filename=
                     preset='fast',
                     pix_fmt='yuv420p',
                     vf=f'scale={target_width}:{target_height},format=yuv420p',
-                    shortest=None, # Ensure video ends with shortest stream (audio)
+                    shortest=None,
                     threads=0)
             .overwrite_output()
             .run(capture_stdout=False, capture_stderr=True)
@@ -407,7 +425,7 @@ def generate_video_from_summary(summary, image_url, output_dir, output_filename=
         for f in temp_files:
             if os.path.exists(f):
                 os.remove(f)
-                # sys.stderr.write(f"DEBUG: Cleaned up temporary file: {f}\n") # Too verbose
+                # sys.stderr.write(f"DEBUG: Cleaned up temporary file: {f}\n")
 
 def generate_post_image(summary, background_image_url, output_dir, output_filename="summary_post.png"):
     """
@@ -419,7 +437,6 @@ def generate_post_image(summary, background_image_url, output_dir, output_filena
             return None
 
         # 1. Download and process background image
-        # Use a generic news image if no specific URL is provided or if download fails
         if background_image_url:
             try:
                 img_response = requests.get(background_image_url, stream=True)
@@ -438,8 +455,6 @@ def generate_post_image(summary, background_image_url, output_dir, output_filena
         target_height = 1080 # Standard social media post height (square)
 
         if base_img_pil is None:
-            # Fallback to a generic news-themed placeholder image
-            # Using a placeholder service like placehold.co
             placeholder_url = f"https://placehold.co/{target_width}x{target_height}/000000/FFFFFF?text=News+Summary"
             try:
                 img_response = requests.get(placeholder_url, stream=True)
@@ -451,26 +466,37 @@ def generate_post_image(summary, background_image_url, output_dir, output_filena
 
         base_img_pil = resize_and_pad_image(base_img_pil, target_width, target_height)
 
-        # Optional: Add a subtle overlay to improve text readability on busy backgrounds
-        overlay = Image.new('RGBA', base_img_pil.size, (0, 0, 0, 80)) # Semi-transparent black overlay
+        # Apply a subtle overlay to improve text readability on busy backgrounds
+        # Made overlay slightly darker for better contrast
+        overlay = Image.new('RGBA', base_img_pil.size, (0, 0, 0, 120)) # Semi-transparent black overlay
         base_img_pil = Image.alpha_composite(base_img_pil.convert('RGBA'), overlay).convert('RGB')
 
-
-        # Add text with background to the bottom of the image
-        add_text_to_image_bottom_with_background(
+        # Add text with semi-transparent background and outline to the bottom of the image
+        base_img_pil = add_text_to_image_bottom_with_background(
             base_img_pil,
             summary,
-            font_size=40,  # Medium font size for post
-            text_color=(0, 0, 0),  # Black text
-            background_color=(255, 255, 255), # White background
-            max_width_chars=45, # Adjusted for medium font
-            line_spacing_factor=1.0 # No extra space between lines
+            font_size=45,  # Slightly larger font for post
+            text_color=(255, 255, 255),  # White text
+            background_color=(0, 0, 0, 180), # More opaque black background
+            max_width_chars=40, # Adjusted for new font size
+            line_spacing_factor=1.1, # Slightly more space between lines
+            bottom_margin=30, # Increased margin from bottom
+            outline_color=(50,50,50), # Darker outline
+            outline_width=3 # Thicker outline
         )
+
+        # Optional: Add a subtle border to the image
+        # You can do this by drawing a rectangle on the image_pil directly
+        draw = ImageDraw.Draw(base_img_pil)
+        border_width = 5
+        border_color = (200, 200, 200) # Light grey border
+        draw.rectangle([0, 0, target_width - 1, target_height - 1], outline=border_color, width=border_width)
+
 
         # Save the generated post image
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        final_post_relative_path = os.path.join('uploads', output_filename) # Relative path for client
+        final_post_relative_path = os.path.join('uploads', output_filename)
         final_post_full_path = os.path.join(output_dir, output_filename)
         
         base_img_pil.save(final_post_full_path)
@@ -500,7 +526,7 @@ def process_article(url):
     }
     # Configure newspaper to use a custom user-agent
     config = Config()
-    config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/120.0.0.0 Safari/537.36'
     
     MAX_RETRIES = 3
     for attempt in range(MAX_RETRIES):
@@ -567,7 +593,6 @@ def process_article(url):
             # 4. Video Generation
             if response_data["summary"] and response_data["top_image"]:
                 try:
-                    # Use a unique filename to avoid conflicts if multiple videos are generated
                     video_filename = f"summary_video_{os.urandom(8).hex()}.mp4"
                     video_path = generate_video_from_summary(
                         response_data["summary"],
@@ -577,8 +602,6 @@ def process_article(url):
                     )
                     response_data["video_path"] = video_path
                     if not video_path:
-                        # If video_path is None, update the error message.
-                        # Ensure response_data["error"] is always a string before concatenation.
                         current_error = response_data.get("error")
                         if current_error:
                             response_data["error"] = current_error + " Video generation failed."
@@ -586,7 +609,6 @@ def process_article(url):
                             response_data["error"] = "Video generation failed."
                 except Exception as e:
                     response_data["video_path"] = None
-                    # Safely update error message
                     current_error = response_data.get("error")
                     error_msg_to_add = f" Unexpected video generation error: {e}"
                     if current_error:
@@ -609,8 +631,8 @@ def process_article(url):
                     post_image_filename = f"summary_post_{os.urandom(8).hex()}.png"
                     post_image_path = generate_post_image(
                         response_data["summary"],
-                        response_data["top_image"], # Use article's top image as background
-                        VIDEO_OUTPUT_DIR, # Save in the same uploads directory
+                        response_data["top_image"],
+                        VIDEO_OUTPUT_DIR,
                         output_filename=post_image_filename
                     )
                     response_data["post_image_path"] = post_image_path
