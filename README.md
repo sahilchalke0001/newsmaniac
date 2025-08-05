@@ -156,16 +156,7 @@ npm start
 - View summaries, translations, videos, and image posts.
 - Listen to TTS audio and download media.
 
-## Troubleshooting
 
-| Issue                                            | Solution                             |
-| ------------------------------------------------ | ------------------------------------ |
-| `handleSelectArticleAndSummarize is not defined` | Ensure it's defined in News.jsx      |
-| FFmpeg not found                                 | Check `FFMPEG_BIN_PATH`              |
-| No Audio in Video                                | Check gTTS, pydub, and FFmpeg        |
-| Failed to fetch news                             | Verify `NEWS_API_KEY`                |
-| Python Errors                                    | Check backend logs                   |
-| CORS Errors                                      | Ensure CORS is configured in Express |
 
 ## License
 
